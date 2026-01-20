@@ -19,6 +19,13 @@ window.Live2DController = {
             backgroundColor: 0x202020
         });
         
+        // 全局更新循环：确保面捕数据每帧都被应用
+        this.app.ticker.add(() => {
+            if (this.currentModel && this.lastRiggedFace) {
+                this.applyFaceData(this.currentModel, this.lastRiggedFace);
+            }
+        });
+        
         console.log("Pixi initialized");
     },
 
@@ -50,17 +57,6 @@ window.Live2DController = {
             // 禁用默认的鼠标跟随，避免冲突
             model.autoInteract = false;
 
-            // 关键：在模型更新循环中应用我们的面捕数据
-            model.on('update', () => {
-                // console.log("Model update event fired"); // 调试用
-                if (this.lastRiggedFace) {
-                    this.applyFaceData(model, this.lastRiggedFace);
-                }
-            });
-            
-            // 确保 ticker 也在运行
-            if (!model.ticker.started) model.ticker.start();
-            
             this.currentModel = model;
             this.app.stage.addChild(model);
 
