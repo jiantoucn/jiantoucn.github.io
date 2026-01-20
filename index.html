@@ -93,6 +93,26 @@
         button:disabled { background: #555; cursor: not-allowed; }
         
         .status { font-size: 12px; color: #aaa; margin-top: 5px; }
+        #load-progress {
+            margin-top: 6px;
+            height: 8px;
+            background: #333;
+            border-radius: 4px;
+            overflow: hidden;
+            display: none;
+        }
+        #load-progress-bar {
+            height: 100%;
+            width: 0%;
+            background: #3aa0ff;
+            transition: width 0.2s ease;
+        }
+        #load-progress-text {
+            font-size: 11px;
+            color: #bbb;
+            margin-top: 4px;
+            display: none;
+        }
     </style>
 
     <!-- 核心依赖 -->
@@ -123,15 +143,15 @@
 <body>
 
     <div id="ui-layer">
-        <h3>Live2D 面部捕捉 <span style="font-size: 0.6em; color: #888; background: #333; padding: 2px 4px; border-radius: 4px;">v1.14</span></h3>
+        <h3>Live2D 面部捕捉 <span style="font-size: 0.6em; color: #888; background: #333; padding: 2px 4px; border-radius: 4px;">v1.16</span></h3>
         
         <!-- 网络链接区域 -->
         <div style="margin-bottom: 10px;">
             <label style="display:block; margin-bottom:5px; font-weight:bold;">选择模型 / 输入链接</label>
             <select id="preset-select" style="width:100%; padding:5px; margin-bottom:5px; background:#333; color:white; border:1px solid #555;">
-
                 <option value="models/kei_en/kei_basic_free/runtime/kei_basic_free.model3.json">Kei Basic (本地)</option>
                 <option value="models/kei_en/kei_vowels_pro/runtime/kei_vowels_pro.model3.json" selected>Kei Vowels (本地)</option>
+                <option value="models/YMT2.0/YMT2.0.model3.json">YMT2.0 (本地)</option>
             </select>
             <input type="text" id="model-url" placeholder="输入 .model3.json 链接" value="models/kei_en/kei_vowels_pro/runtime/kei_vowels_pro.model3.json">
             <button id="btn-load">🌐 加载模型</button>
@@ -142,6 +162,8 @@
         <button id="btn-camera">📷 开启摄像头</button>
         <button id="btn-refresh" style="background: #6c757d; margin-top: 5px;">🔄 强制刷新缓存</button>
         <div class="status" id="status-text">准备就绪</div>
+        <div id="load-progress"><div id="load-progress-bar"></div></div>
+        <div id="load-progress-text"></div>
         
         <div class="video-container" id="video-container">
             <video id="video-preview" playsinline></video>

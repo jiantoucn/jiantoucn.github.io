@@ -28,6 +28,168 @@ window.Live2DController = {
         
         console.log("Pixi initialized");
     },
+    setLoadProgress: function(percent, loaded, total, label) {
+        const progressEl = document.getElementById('load-progress');
+        const barEl = document.getElementById('load-progress-bar');
+        const textEl = document.getElementById('load-progress-text');
+        if (!progressEl || !barEl || !textEl) return;
+        if (percent === null) {
+            progressEl.style.display = 'none';
+            textEl.style.display = 'none';
+            barEl.style.width = '0%';
+            textEl.innerText = '';
+            return;
+        }
+        progressEl.style.display = 'block';
+        textEl.style.display = 'block';
+        const fallbackPercent = loaded > 0 ? 20 : 5;
+        const safePercent = Number.isFinite(percent) && total > 0 ? Math.max(0, Math.min(100, percent)) : fallbackPercent;
+        barEl.style.width = safePercent + '%';
+        if (total && total > 0 && Number.isFinite(loaded)) {
+            textEl.innerText = `${label || '正在加载'} ${this.formatBytes(loaded)} / ${this.formatBytes(total)} (${Math.round(safePercent)}%)`;
+            return;
+        }
+        textEl.innerText = `${label || '正在加载'}`;
+    },
+    formatBytes: function(bytes) {
+        if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
+        const units = ['B', 'KB', 'MB', 'GB'];
+        let value = bytes;
+        let unitIndex = 0;
+        while (value >= 1024 && unitIndex < units.length - 1) {
+            value /= 1024;
+            unitIndex += 1;
+        }
+        return `${value.toFixed(value >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+    },
+    normalizeUrl: function(source) {
+        try {
+            return new URL(source, window.location.href).toString();
+        } catch (e) {
+            return null;
+        }
+    },
+    collectModelAssetUrls: function(modelJson, baseUrl) {
+        if (!modelJson || !modelJson.FileReferences) return [];
+        const refs = modelJson.FileReferences;
+        const assets = new Set();
+        const addFile = (file) => {
+            if (file && typeof file === 'string') assets.add(new URL(file, baseUrl).toString());
+        };
+        addFile(refs.Moc);
+        addFile(refs.Physics);
+        addFile(refs.DisplayInfo);
+        addFile(refs.MotionSync);
+        if (Array.isArray(refs.Textures)) {
+            refs.Textures.forEach(addFile);
+        }
+        if (refs.Motions && typeof refs.Motions === 'object') {
+            Object.values(refs.Motions).forEach((motionGroup) => {
+                if (Array.isArray(motionGroup)) {
+                    motionGroup.forEach((motion) => {
+                        if (motion && typeof motion === 'object') {
+                            addFile(motion.File);
+                            addFile(motion.Sound);
+                        }
+                    });
+                }
+            });
+        }
+        if (refs.Expressions && Array.isArray(refs.Expressions)) {
+            refs.Expressions.forEach((exp) => {
+                if (exp && typeof exp === 'object') addFile(exp.File);
+            });
+        }
+        return Array.from(assets);
+    },
+    fetchWithProgress: async function(url, progress, label) {
+        const response = await fetch(url, { cache: 'force-cache' });
+        const responseClone = response.clone();
+        if (!response.ok) throw new Error(`资源加载失败: ${response.status} ${response.statusText}`);
+        const total = Number(response.headers.get('content-length')) || 0;
+        if (total > 0) {
+            progress.total += total;
+        }
+        if (progress.onUpdate) {
+            const percent = progress.total > 0 ? (progress.loaded / progress.total) * 100 : 0;
+            progress.onUpdate(percent, progress.loaded, progress.total, label);
+        }
+        if (response.body && response.body.getReader) {
+            const reader = response.body.getReader();
+            const chunks = [];
+            let received = 0;
+            while (true) {
+                const result = await reader.read();
+                if (result.done) break;
+                const value = result.value;
+                received += value.length;
+                progress.loaded += value.length;
+                chunks.push(value);
+                if (progress.onUpdate) {
+                    const percent = progress.total > 0 ? (progress.loaded / progress.total) * 100 : 0;
+                    progress.onUpdate(percent, progress.loaded, progress.total, label);
+                }
+            }
+            if (total === 0) {
+                progress.total += received;
+                if (progress.onUpdate) {
+                    const percent = progress.total > 0 ? (progress.loaded / progress.total) * 100 : 0;
+                    progress.onUpdate(percent, progress.loaded, progress.total, label);
+                }
+            }
+            const buffer = new Uint8Array(received);
+            let offset = 0;
+            for (const chunk of chunks) {
+                buffer.set(chunk, offset);
+                offset += chunk.length;
+            }
+            if ('caches' in window) {
+                const cache = await caches.open('live2d-model-cache-v1');
+                cache.put(url, responseClone).catch(() => {});
+            }
+            return buffer.buffer;
+        }
+        const arrayBuffer = await response.arrayBuffer();
+        const size = arrayBuffer.byteLength;
+        progress.loaded += size;
+        if (total === 0) {
+            progress.total += size;
+        }
+        if (progress.onUpdate) {
+            const percent = progress.total > 0 ? (progress.loaded / progress.total) * 100 : 0;
+            progress.onUpdate(percent, progress.loaded, progress.total, label);
+        }
+        if ('caches' in window) {
+            const cache = await caches.open('live2d-model-cache-v1');
+            cache.put(url, responseClone).catch(() => {});
+        }
+        return arrayBuffer;
+    },
+    prefetchModelAssets: async function(source, onUpdate) {
+        const modelUrl = this.normalizeUrl(source);
+        if (!modelUrl) return;
+        const progress = { loaded: 0, total: 0, onUpdate };
+        const modelBuffer = await this.fetchWithProgress(modelUrl, progress, '读取模型信息');
+        const text = new TextDecoder().decode(modelBuffer);
+        const modelJson = JSON.parse(text);
+        const baseUrl = modelUrl.substring(0, modelUrl.lastIndexOf('/') + 1);
+        const assets = this.collectModelAssetUrls(modelJson, baseUrl);
+        if (assets.length === 0) return;
+        const concurrency = 3;
+        let index = 0;
+        const worker = async () => {
+            while (index < assets.length) {
+                const current = assets[index];
+                index += 1;
+                await this.fetchWithProgress(current, progress, '预加载模型资源');
+            }
+        };
+        const workers = [];
+        for (let i = 0; i < concurrency; i += 1) {
+            workers.push(worker());
+        }
+        await Promise.all(workers);
+    },
 
     loadModel: async function(source, statusElementId) {
         const statusText = document.getElementById(statusElementId);
@@ -40,6 +202,7 @@ window.Live2DController = {
         }
 
         try {
+            this.setLoadProgress(0, 0, 0, '准备加载');
             if (this.currentModel) {
                 this.app.stage.removeChild(this.currentModel);
                 this.currentModel.destroy();
@@ -47,6 +210,13 @@ window.Live2DController = {
             }
 
             console.log("Starting model load...");
+            try {
+                await this.prefetchModelAssets(source, (percent, loaded, total, label) => {
+                    this.setLoadProgress(percent, loaded, total, label);
+                });
+            } catch (e) {
+                console.warn(e);
+            }
             const model = await Live2DModel.from(source);
             
             // 禁用自动空闲动画，防止模型自己乱动
@@ -66,10 +236,13 @@ window.Live2DController = {
             model.alpha = 1;
 
             if(statusText) statusText.innerText = "模型加载成功";
+            this.setLoadProgress(100, 1, 1, '加载完成');
+            setTimeout(() => this.setLoadProgress(null), 800);
             console.log("Model loaded:", model);
         } catch (e) {
             console.error(e);
             if(statusText) statusText.innerText = "模型加载失败: " + e.message;
+            this.setLoadProgress(null);
         }
     },
 
