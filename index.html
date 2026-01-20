@@ -64,6 +64,9 @@
     <!-- Pixi-Live2D-Display (使用最新版) -->
     <script src="https://cdn.jsdelivr.net/npm/pixi-live2d-display/dist/index.min.js"></script>
     
+    <!-- JSZip (用于解压模型压缩包) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
     <!-- Kalidokit (面部解算) -->
     <script src="https://cdn.jsdelivr.net/npm/kalidokit@1.1.5/dist/kalidokit.umd.js"></script>
     
@@ -78,12 +81,12 @@
         
         <!-- 本地上传区域 -->
         <div style="margin-bottom: 15px; border-bottom: 1px solid #444; padding-bottom: 15px;">
-            <label style="display:block; margin-bottom:5px; font-weight:bold;">方式一：本地文件夹导入 (推荐)</label>
+            <label style="display:block; margin-bottom:5px; font-weight:bold;">方式一：上传模型压缩包 (推荐)</label>
             <div style="font-size: 12px; color: #ccc; margin-bottom: 8px;">
-                请选择包含 <code style="background:#444; padding:2px;">.model3.json</code> 的整个模型文件夹
+                请上传包含模型的 <code style="background:#444; padding:2px;">.zip</code> 文件
             </div>
-            <input type="file" id="file-input" webkitdirectory style="display: none;">
-            <button onclick="document.getElementById('file-input').click()" style="background: #28a745;">📂 选择模型文件夹</button>
+            <input type="file" id="file-input" accept=".zip" style="display: none;">
+            <button onclick="document.getElementById('file-input').click()" style="background: #28a745;">📦 选择 ZIP 压缩包</button>
         </div>
 
         <!-- 网络链接区域 -->
@@ -282,83 +285,99 @@
             }
         }
 
-        // --- 本地文件处理逻辑 ---
+        // --- 本地文件处理逻辑 (ZIP) ---
         document.getElementById('file-input').addEventListener('change', async (event) => {
-            const files = event.target.files;
-            if (files.length === 0) return;
+            const file = event.target.files[0];
+            if (!file) return;
 
-            // 1. 寻找模型入口文件 (.model3.json 或 .model.json)
-            let modelFile = null;
-            let modelDir = ''; 
+            const statusText = document.getElementById('status-text');
+            statusText.innerText = "正在解压模型...";
 
-            for (const file of files) {
-                if (file.name.endsWith('.model3.json') || file.name.endsWith('.model.json')) {
-                    modelFile = file;
-                    // 获取相对路径目录 (例如 "MyModel/runtime/")
-                    const pathParts = file.webkitRelativePath.split('/');
-                    pathParts.pop(); 
-                    modelDir = pathParts.length > 0 ? pathParts.join('/') + '/' : '';
-                    break;
-                }
-            }
+            try {
+                // 1. 解压 ZIP
+                const zip = await JSZip.loadAsync(file);
+                
+                // 2. 寻找模型入口文件
+                let modelFileEntry = null;
+                let modelDir = '';
 
-            if (!modelFile) {
-                alert('未在文件夹中找到 .model3.json 或 .model.json 文件');
-                return;
-            }
-
-            // 2. 建立 "相对路径 -> Blob URL" 映射
-            const fileMap = new Map();
-            for (const file of files) {
-                let relPath = file.webkitRelativePath;
-                if (modelDir && relPath.startsWith(modelDir)) {
-                    relPath = relPath.substring(modelDir.length);
-                }
-                const blobUrl = URL.createObjectURL(file);
-                fileMap.set(relPath, blobUrl);
-                fileMap.set('./' + relPath, blobUrl);
-            }
-
-            // 3. 读取并修改 JSON
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                try {
-                    const jsonStr = e.target.result;
-                    const settings = JSON.parse(jsonStr);
-
-                    // 递归替换路径
-                    function replacePaths(obj) {
-                        if (typeof obj === 'string') {
-                            if (fileMap.has(obj)) return fileMap.get(obj);
-                            return obj;
+                // 遍历所有文件寻找 .model3.json 或 .model.json
+                for (const [relativePath, entry] of Object.entries(zip.files)) {
+                    if (entry.dir) continue;
+                    if (relativePath.endsWith('.model3.json') || relativePath.endsWith('.model.json')) {
+                        modelFileEntry = entry;
+                        // 获取目录前缀
+                        const lastSlashIndex = relativePath.lastIndexOf('/');
+                        if (lastSlashIndex !== -1) {
+                            modelDir = relativePath.substring(0, lastSlashIndex + 1);
                         }
-                        if (Array.isArray(obj)) return obj.map(replacePaths);
-                        if (typeof obj === 'object' && obj !== null) {
-                            const newObj = {};
-                            for (const key in obj) newObj[key] = replacePaths(obj[key]);
-                            return newObj;
-                        }
+                        break;
+                    }
+                }
+
+                if (!modelFileEntry) {
+                    alert('压缩包内未找到 .model3.json 或 .model.json 文件');
+                    statusText.innerText = "解压失败: 未找到模型文件";
+                    return;
+                }
+
+                // 3. 将所有相关文件转换为 Blob URL
+                const fileMap = new Map();
+                const conversionPromises = [];
+
+                for (const [relativePath, entry] of Object.entries(zip.files)) {
+                    if (entry.dir) continue;
+                    
+                    // 只处理模型目录下的文件 (如果模型在根目录，modelDir 为空字符串，startsWith 总是 true)
+                    if (relativePath.startsWith(modelDir)) {
+                        // 去除目录前缀，得到相对路径
+                        const cleanPath = relativePath.substring(modelDir.length);
+                        
+                        // 异步转换 Blob
+                        const p = entry.async('blob').then(blob => {
+                            const blobUrl = URL.createObjectURL(blob);
+                            fileMap.set(cleanPath, blobUrl);
+                            fileMap.set('./' + cleanPath, blobUrl); // 兼容 ./ 写法
+                        });
+                        conversionPromises.push(p);
+                    }
+                }
+
+                await Promise.all(conversionPromises);
+
+                // 4. 读取并解析主模型配置文件
+                const jsonStr = await modelFileEntry.async('string');
+                const settings = JSON.parse(jsonStr);
+
+                // 递归替换路径
+                function replacePaths(obj) {
+                    if (typeof obj === 'string') {
+                        if (fileMap.has(obj)) return fileMap.get(obj);
                         return obj;
                     }
-
-                    const patchedSettings = replacePaths(settings);
-                    
-                    // 特殊处理: 如果是 Cubism 2 (.model.json)，它可能没有 FileReferences 而是直接在顶层
-                    // 如果是 Cubism 4 (.model3.json)，通常在 FileReferences 下
-                    // 上面的递归替换已经覆盖了所有情况。
-                    
-                    // 额外补充 url 属性，防止 pixi-live2d-display 内部报错 (虽然不一定用到)
-                    patchedSettings.url = fileMap.get(modelFile.name) || "model.json";
-
-                    console.log('加载本地模型配置:', patchedSettings);
-                    await loadModel(patchedSettings);
-
-                } catch (err) {
-                    console.error(err);
-                    alert('读取模型配置文件失败: ' + err.message);
+                    if (Array.isArray(obj)) return obj.map(replacePaths);
+                    if (typeof obj === 'object' && obj !== null) {
+                        const newObj = {};
+                        for (const key in obj) newObj[key] = replacePaths(obj[key]);
+                        return newObj;
+                    }
+                    return obj;
                 }
-            };
-            reader.readAsText(modelFile);
+
+                const patchedSettings = replacePaths(settings);
+                // 补充 url 属性
+                patchedSettings.url = fileMap.get(modelFileEntry.name.substring(modelDir.length)) || "model.json";
+
+                console.log('加载 ZIP 模型配置:', patchedSettings);
+                await loadModel(patchedSettings);
+                
+                statusText.innerText = "ZIP 模型加载成功";
+
+            } catch (err) {
+                console.error(err);
+                statusText.innerText = "ZIP 处理失败: " + err.message;
+                alert('ZIP 解析失败: ' + err.message);
+            }
         });
 
         // UI 事件绑定
