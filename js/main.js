@@ -50,7 +50,7 @@ function bindEvents() {
                 // 更新 UI 调试信息
                 updateDebugUI(riggedFace);
             });
-            statusText.innerText = "摄像头正在运行 (v1.20)";
+            statusText.innerText = "摄像头正在运行 (v1.21)";
             document.getElementById('btn-camera').disabled = true;
         } catch (err) {
             statusText.innerText = "摄像头启动失败: " + err.message;
@@ -130,6 +130,11 @@ Body Z (Roll):  ${(spine.z * 180 / Math.PI).toFixed(1)}°
     // 原始数据状态
     const raw = riggedData.raw || {};
     html += `\n[RAW] Face: ${raw.faceLandmarks ? 'OK' : 'NO'}, Pose: ${raw.poseLandmarks ? 'OK' : 'NO'}`;
+    
+    // FPS
+    if (riggedData.fps) {
+        html += ` | FPS: ${riggedData.fps}`;
+    }
 
     debugEl.innerText = html;
 }

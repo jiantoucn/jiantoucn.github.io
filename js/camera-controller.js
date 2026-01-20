@@ -7,6 +7,11 @@ window.CameraController = {
     canvasCtx: null,
     onResultsCallback: null,
 
+    // FPS 计算
+    frameCount: 0,
+    lastFpsTime: 0,
+    fps: 0,
+
     init: async function(videoId, canvasId, onResults) {
         this.videoElement = document.getElementById(videoId);
         this.canvasElement = document.getElementById(canvasId);
@@ -62,9 +67,19 @@ window.CameraController = {
     },
 
     handleResults: function(results) {
+        // 计算 FPS
+        const now = performance.now();
+        this.frameCount++;
+        if (now - this.lastFpsTime >= 1000) {
+            this.fps = Math.round((this.frameCount * 1000) / (now - this.lastFpsTime));
+            this.frameCount = 0;
+            this.lastFpsTime = now;
+        }
+
         const { canvasCtx, canvasElement } = this;
         canvasCtx.save();
         canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+        canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
         
         // 1. 绘制 Pose
         if (results.poseLandmarks && window.drawConnectors) {
@@ -90,9 +105,22 @@ window.CameraController = {
                      drawConnectors(canvasCtx, results.faceLandmarks, FACEMESH_LEFT_IRIS, {color: '#30FF30', lineWidth: 2});
                 }
             }
+        }
 
-                // 3. 使用 Kalidokit 解算
-                let faceRig = null;
+        // 3. 绘制 Hands (新增)
+        if (window.drawConnectors && window.HAND_CONNECTIONS) {
+            if (results.leftHandLandmarks) {
+                drawConnectors(canvasCtx, results.leftHandLandmarks, HAND_CONNECTIONS, {color: '#CC0000', lineWidth: 2});
+                drawLandmarks(canvasCtx, results.leftHandLandmarks, {color: '#00FF00', lineWidth: 1});
+            }
+            if (results.rightHandLandmarks) {
+                drawConnectors(canvasCtx, results.rightHandLandmarks, HAND_CONNECTIONS, {color: '#00CC00', lineWidth: 2});
+                drawLandmarks(canvasCtx, results.rightHandLandmarks, {color: '#FF0000', lineWidth: 1});
+            }
+        }
+
+        // 4. 使用 Kalidokit 解算
+        let faceRig = null;
                 let poseRig = null;
                 let leftHandRig = null;
                 let rightHandRig = null;

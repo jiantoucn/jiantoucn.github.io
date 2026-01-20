@@ -18,6 +18,44 @@ window.Live2DController = {
             resizeTo: window,
             backgroundColor: 0x202020
         });
+
+        // 缩放控制
+        const view = this.app.view;
+        // 滚轮缩放
+        view.addEventListener('wheel', (e) => {
+            if (!this.currentModel) return;
+            e.preventDefault();
+            const delta = -e.deltaY * 0.001;
+            let newScale = this.currentModel.scale.x + delta;
+            newScale = Math.max(0.05, Math.min(newScale, 5.0));
+            this.currentModel.scale.set(newScale);
+        }, { passive: false });
+
+        // 双指缩放
+        let initialDistance = 0;
+        let initialScale = 1;
+        view.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 2 && this.currentModel) {
+                const dx = e.touches[0].clientX - e.touches[1].clientX;
+                const dy = e.touches[0].clientY - e.touches[1].clientY;
+                initialDistance = Math.sqrt(dx * dx + dy * dy);
+                initialScale = this.currentModel.scale.x;
+            }
+        });
+        view.addEventListener('touchmove', (e) => {
+            if (e.touches.length === 2 && this.currentModel) {
+                e.preventDefault();
+                const dx = e.touches[0].clientX - e.touches[1].clientX;
+                const dy = e.touches[0].clientY - e.touches[1].clientY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (initialDistance > 0) {
+                    const scaleFactor = distance / initialDistance;
+                    let newScale = initialScale * scaleFactor;
+                    newScale = Math.max(0.05, Math.min(newScale, 5.0));
+                    this.currentModel.scale.set(newScale);
+                }
+            }
+        }, { passive: false });
         
         // 全局更新循环：确保面捕数据每帧都被应用
         this.app.ticker.add(() => {
@@ -283,6 +321,19 @@ window.Live2DController = {
     applyRiggedData: function(model, data) {
         if (!model || !model.internalModel || !data) return;
 
+        // 参数别名映射表 (适配不规范模型)
+        const PARAM_ALIASES = {
+            'ParamAngleX': ['ParamAngleX', 'PARAM_ANGLE_X', 'Param85'], // Param85: 艾玛
+            'ParamAngleY': ['ParamAngleY', 'PARAM_ANGLE_Y', 'Param86'], // Param86: 艾玛
+            'ParamAngleZ': ['ParamAngleZ', 'PARAM_ANGLE_Z', 'Param87'], // Param87: 艾玛
+            'ParamBodyAngleX': ['ParamBodyAngleX', 'PARAM_BODY_ANGLE_X', 'ParamBodyAngleX'],
+            'ParamBodyAngleY': ['ParamBodyAngleY', 'PARAM_BODY_ANGLE_Y', 'ParamBodyAngleY'],
+            'ParamBodyAngleZ': ['ParamBodyAngleZ', 'PARAM_BODY_ANGLE_Z', 'ParamBodyAngleZ'],
+            'ParamEyeLOpen': ['ParamEyeLOpen', 'PARAM_EYE_L_OPEN', 'ParamEyeLOpen'],
+            'ParamEyeROpen': ['ParamEyeROpen', 'PARAM_EYE_R_OPEN', 'ParamEyeROpen'],
+            'ParamMouthOpenY': ['ParamMouthOpenY', 'PARAM_MOUTH_OPEN_Y', 'ParamMouthOpenY']
+        };
+
         const core = model.internalModel.coreModel;
         const riggedFace = data.face;
         const riggedPose = data.pose;
@@ -295,35 +346,27 @@ window.Live2DController = {
         const mouth = riggedFace.mouth;
 
         // 兼容 Cubism 4 (setParameterValueById) 和 Cubism 2 (setParamFloat)
+        // 支持多别名映射
         const setParam = (id, value) => {
-            if (core.setParameterValueById) {
-                core.setParameterValueById(id, value);
-            } else if (core.setParamFloat) {
-                // Cubism 2 ID 映射
-                let v2Id = id;
-                const map = {
-                    'ParamAngleX': 'PARAM_ANGLE_X',
-                    'ParamAngleY': 'PARAM_ANGLE_Y',
-                    'ParamAngleZ': 'PARAM_ANGLE_Z',
-                    'ParamEyeLOpen': 'PARAM_EYE_L_OPEN',
-                    'ParamEyeROpen': 'PARAM_EYE_R_OPEN',
-                    'ParamEyeBallX': 'PARAM_EYE_BALL_X',
-                    'ParamEyeBallY': 'PARAM_EYE_BALL_Y',
-                    'ParamMouthOpenY': 'PARAM_MOUTH_OPEN_Y',
-                    'ParamMouthForm': 'PARAM_MOUTH_FORM',
-                    'ParamBodyAngleX': 'PARAM_BODY_ANGLE_X',
-                    'ParamBodyAngleY': 'PARAM_BODY_ANGLE_Y',
-                    'ParamBodyAngleZ': 'PARAM_BODY_ANGLE_Z'
-                };
-                if (map[id]) v2Id = map[id];
-                
-                let index = -1;
-                if (core.getParamIndex) index = core.getParamIndex(v2Id);
-                
-                if (index !== -1) core.setParamFloat(index, value);
-                else try { core.setParamFloat(v2Id, value); } catch(e) {}
-            }
+            const aliases = PARAM_ALIASES[id] || [id];
+            aliases.forEach(alias => {
+                if (core.setParameterValueById) {
+                    // Cubism 4
+                    core.setParameterValueById(alias, value);
+                } else if (core.setParamFloat) {
+                    // Cubism 2
+                    if (core.getParamIndex) {
+                        const index = core.getParamIndex(alias);
+                        if (index !== -1) {
+                            core.setParamFloat(index, value);
+                            return;
+                        }
+                    }
+                    try { core.setParamFloat(alias, value); } catch(e) {}
+                }
+            });
         };
+
 
         // 头部旋转
         setParam('ParamAngleX', head.degrees.y); 
