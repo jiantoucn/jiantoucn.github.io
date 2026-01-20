@@ -1,0 +1,21 @@
+{
+  "name": "单机德州王",
+  "short_name": "德州王",
+  "description": "一个支持变幻莫测 AI 策略的德州扑克单机游戏",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#1a1a1a",
+  "theme_color": "#1a1a1a",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>圣诞粒子交互 - 手部捕捉</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- MediaPipe -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    
+    <!-- Import Map for Three.js Modules -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+    <div id="loading-screen">
+        <div class="loader"></div>
+        <p>正在加载 AI 模型...</p>
+    </div>
+    <div id="container">
+        <!-- Three.js 粒子画布 -->
+        <div id="canvas-container"></div>
+        
+        <!-- 摄像头预览区域 -->
+        <div id="camera-preview">
+            <video class="input_video" style="display:none"></video>
+            <canvas class="output_canvas"></canvas>
+            <div id="status-info">等待摄像头...</div>
+        </div>
+
+        <!-- 标题与指令 -->
+        <div id="ui-overlay">
+            <h1>圣诞手势粒子交互</h1>
+            <p class="instruction">✋ 张开手：粒子散开 | ✊ 握紧拳：凝聚成树</p>
+        </div>
+
+        <!-- 调试信息 -->
+        <div id="debug-info">
+            <p>手部状态: <span id="hand-state">未知</span></p>
+            <p>FPS: <span id="fps">0</span></p>
+        </div>
+    </div>
+    <script type="module" src="app.js"></script>
+</body>
+</html>

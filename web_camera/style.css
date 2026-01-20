@@ -1,0 +1,133 @@
+body, html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: #000;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+#loading-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #000;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    z-index: 100;
+}
+
+.loader {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #4CAF50;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+    margin-bottom: 20px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+#container {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+}
+
+#canvas-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+}
+
+#camera-preview {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    width: 120px;
+    height: 160px;
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    border-radius: 8px;
+    overflow: hidden;
+    z-index: 10;
+    background: #000;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+}
+
+.output_canvas {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scaleX(-1); /* 镜像显示摄像头 */
+}
+
+#status-info {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 10px;
+    text-align: center;
+    width: 100%;
+}
+
+#debug-info {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    z-index: 10;
+    color: white;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 14px;
+    pointer-events: none;
+}
+
+#debug-info p {
+    margin: 5px 0;
+}
+
+#ui-overlay {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    color: white;
+    z-index: 10;
+    width: 100%;
+    pointer-events: none;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+}
+
+#ui-overlay h1 {
+    margin: 0;
+    font-size: 24px;
+    letter-spacing: 2px;
+}
+
+.instruction {
+    margin-top: 5px;
+    font-size: 14px;
+    opacity: 0.9;
+}
+
+#hand-state {
+    font-weight: bold;
+    color: #4CAF50;
+}

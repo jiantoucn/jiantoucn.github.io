@@ -3,155 +3,135 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live2D 面部捕捉 Web 演示</title>
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#007bff">
+    <title>项目导航</title>
+    <link rel="manifest" href="./manifest.json">
+    <link rel="icon" type="image/svg+xml" href="./icon.svg">
     <style>
-        body { margin: 0; overflow: hidden; background-color: #202020; font-family: sans-serif; }
-        #canvas { width: 100vw; height: 100vh; display: block; }
-        
-        /* UI 覆盖层 */
-        #ui-layer {
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+            position: relative;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            border-bottom: 2px solid #ddd;
+            padding-bottom: 10px;
+        }
+        .controls {
             position: absolute;
             top: 20px;
-            left: 20px;
-            z-index: 100;
-            background: rgba(0, 0, 0, 0.7);
-            padding: 15px;
-            border-radius: 8px;
-            color: white;
-            max-width: 300px;
+            right: 20px;
         }
-        
-        #video-preview {
-            width: 100%;
-            border-radius: 4px;
-            margin-top: 10px;
-            transform: scaleX(-1); /* 镜像翻转 */
-            background: #000;
-            display: block;
-            position: absolute;
-            top: 0;
-            left: 0;
-            z-index: 1;
-        }
-
-        #output-canvas {
-            width: 100%;
-            border-radius: 4px;
-            margin-top: 10px;
-            transform: scaleX(-1);
-            position: absolute;
-            top: 0;
-            left: 0;
-            z-index: 2; /* 在视频之上 */
-            pointer-events: none; /* 让点击穿透 */
-        }
-
-        /* 视频容器，用于重叠 video 和 canvas */
-        .video-container {
-            position: relative;
-            width: 100%;
-            padding-top: 75%; /* 4:3 比例 */
-            display: none; /* 初始隐藏 */
-            margin-top: 10px;
-        }
-        
-        .video-container video, .video-container canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-        }
-
-        input[type="text"] {
-            width: 100%;
-            padding: 5px;
-            margin-bottom: 5px;
-            box-sizing: border-box;
-        }
-
-        button {
-            background: #007bff;
+        .btn-refresh {
+            background-color: #28a745;
             color: white;
             border: none;
-            padding: 8px 12px;
+            padding: 8px 16px;
             border-radius: 4px;
             cursor: pointer;
-            width: 100%;
-            margin-bottom: 5px;
+            font-size: 0.9em;
+            transition: background-color 0.2s;
         }
-        
-        button:hover { background: #0056b3; }
-        button:disabled { background: #555; cursor: not-allowed; }
-        
-        .status { font-size: 12px; color: #aaa; margin-top: 5px; }
+        .btn-refresh:hover {
+            background-color: #218838;
+        }
+        .nav-list {
+            list-style: none;
+            padding: 0;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 30px;
+        }
+        .nav-item {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .nav-item:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+        }
+        .nav-link {
+            display: block;
+            padding: 20px;
+            text-decoration: none;
+            color: #333;
+            font-weight: 500;
+            font-size: 1.1em;
+            text-align: center;
+        }
+        .nav-link:hover {
+            color: #007bff;
+        }
+        .path-hint {
+            display: block;
+            font-size: 0.8em;
+            color: #888;
+            margin-top: 5px;
+            font-weight: normal;
+        }
     </style>
-
-    <!-- 核心依赖 -->
-    <!-- Cubism Core (必须在 pixi-live2d-display 之前加载) -->
-    <script src="https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js"></script>
-    <!-- Cubism 2 Core -->
-    <script src="https://cdn.jsdelivr.net/gh/dylanNew/live2d/webgl/Live2D/lib/live2d.min.js"></script>
-    
-    <!-- PixiJS -->
-    <script src="https://cdn.jsdelivr.net/npm/pixi.js@6.5.1/dist/browser/pixi.min.js"></script>
-    
-    <!-- Pixi-Live2D-Display (使用最新版) -->
-    <script src="https://cdn.jsdelivr.net/npm/pixi-live2d-display/dist/index.min.js"></script>
-    
-    <!-- JSZip (用于解压模型压缩包) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    
-    <!-- MediaPipe Drawing Utils (用于绘制骨骼) -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
-
-    <!-- Kalidokit (面部解算) -->
-    <script src="https://cdn.jsdelivr.net/npm/kalidokit@1.1.5/dist/kalidokit.umd.js"></script>
-    
-    <!-- MediaPipe Face Mesh -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
 </head>
 <body>
-
-    <div id="ui-layer">
-        <h3>Live2D 面部捕捉 <span style="font-size: 0.6em; color: #888; background: #333; padding: 2px 4px; border-radius: 4px;">v1.12</span></h3>
-        
-        <!-- 网络链接区域 -->
-        <div style="margin-bottom: 10px;">
-            <label style="display:block; margin-bottom:5px; font-weight:bold;">选择模型 / 输入链接</label>
-            <select id="preset-select" style="width:100%; padding:5px; margin-bottom:5px; background:#333; color:white; border:1px solid #555;">
-                <option value="models/miku/runtime/miku.model3.json" selected>Miku (本地)</option>
-                <option value="models/hiyori_free_zh/runtime/hiyori_free_t08.model3.json">Hiyori (本地)</option>
-                <option value="models/mark_free_zh/runtime/mark_free_t04.model3.json">Mark (本地)</option>
-                <option value="models/kei_en/kei_basic_free/runtime/kei_basic_free.model3.json">Kei Basic (本地)</option>
-                <option value="models/kei_en/kei_vowels_pro/runtime/kei_vowels_pro.model3.json">Kei Vowels (本地)</option>
-                <option value="https://cdn.jsdelivr.net/gh/guansss/pixi-live2d-display/test/assets/haru/haru_greeter_t03.model3.json">Haru (在线)</option>
-            </select>
-            <input type="text" id="model-url" placeholder="输入 .model3.json 链接" value="models/miku/runtime/miku.model3.json">
-            <button id="btn-load">🌐 加载模型</button>
-        </div>
-
-        <hr style="border-color: #444;">
-
-        <button id="btn-camera">📷 开启摄像头</button>
-        <button id="btn-refresh" style="background: #6c757d; margin-top: 5px;">🔄 强制刷新缓存</button>
-        <div class="status" id="status-text">准备就绪</div>
-        
-        <div class="video-container" id="video-container">
-            <video id="video-preview" playsinline></video>
-            <canvas id="output-canvas"></canvas>
-        </div>
+    <div class="controls">
+        <button onclick="forceRefresh()" class="btn-refresh">强制刷新</button>
     </div>
-
-    <canvas id="canvas"></canvas>
-
-    <!-- 模块化脚本 -->
-    <script src="js/live2d-controller.js"></script>
-    <script src="js/camera-controller.js"></script>
-    <script src="js/main.js"></script>
-
+    <h1>项目导航</h1>
+    <ul class="nav-list">
+        <li class="nav-item">
+            <a href="./time/index.html" class="nav-link">
+                Time
+                <span class="path-hint">time/index.html</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a href="./2dlive/live2d-web/index.html" class="nav-link">
+                Live2D Web
+                <span class="path-hint">2dlive/live2d-web/index.html</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a href="./web_camera/index.html" class="nav-link">
+                Web Camera
+                <span class="path-hint">web_camera/index.html</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a href="./test/index.html" class="nav-link">
+                Test Page
+                <span class="path-hint">test/index.html</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a href="./d with LLM/index.html" class="nav-link">
+                D with LLM
+                <span class="path-hint">d with LLM/index.html</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a href="./d/index.html" class="nav-link">
+                D Project
+                <span class="path-hint">d/index.html</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a href="./Swiss round/index.html" class="nav-link">
+                Swiss Round (Source)
+                <span class="path-hint">Swiss round/index.html</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a href="./Swiss round/dist/index.html" class="nav-link">
+                Swiss Round (Dist)
+                <span class="path-hint">Swiss round/dist/index.html</span>
+            </a>
+        </li>
+    </ul>
 </body>
 </html>
