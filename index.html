@@ -28,6 +28,39 @@
             transform: scaleX(-1); /* 镜像翻转 */
             background: #000;
             display: none; /* 默认隐藏，开启摄像头后显示 */
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        #output-canvas {
+            width: 100%;
+            border-radius: 4px;
+            margin-top: 10px;
+            transform: scaleX(-1);
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 2; /* 在视频之上 */
+            pointer-events: none; /* 让点击穿透 */
+        }
+
+        /* 视频容器，用于重叠 video 和 canvas */
+        .video-container {
+            position: relative;
+            width: 100%;
+            padding-top: 75%; /* 4:3 比例 */
+            display: none; /* 初始隐藏 */
+            margin-top: 10px;
+        }
+        
+        .video-container video, .video-container canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
         }
 
         input[type="text"] {
@@ -66,6 +99,9 @@
     
     <!-- JSZip (用于解压模型压缩包) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    
+    <!-- MediaPipe Drawing Utils (用于绘制骨骼) -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
 
     <!-- Kalidokit (面部解算) -->
     <script src="https://cdn.jsdelivr.net/npm/kalidokit@1.1.5/dist/kalidokit.umd.js"></script>
@@ -77,7 +113,7 @@
 <body>
 
     <div id="ui-layer">
-        <h3>Live2D 面部捕捉</h3>
+        <h3>Live2D 面部捕捉 <span style="font-size: 0.6em; color: #888; background: #333; padding: 2px 4px; border-radius: 4px;">v1.1</span></h3>
         
         <!-- 本地上传区域 -->
         <div style="margin-bottom: 15px; border-bottom: 1px solid #444; padding-bottom: 15px;">
@@ -101,12 +137,16 @@
         <button id="btn-camera">📷 开启摄像头</button>
         <div class="status" id="status-text">准备就绪</div>
         
-        <video id="video-preview" playsinline></video>
+        <div class="video-container" id="video-container">
+            <video id="video-preview" playsinline></video>
+            <canvas id="output-canvas"></canvas>
+        </div>
     </div>
 
     <canvas id="canvas"></canvas>
 
     <script>
+        // 版本 v1.1 - 最保守初始化 + 骨骼可视化
         const { Application } = PIXI;
         // 确保 PIXI.live2d 存在
         if (!PIXI.live2d) {
@@ -125,14 +165,18 @@
         let currentModel = null;
         let faceMesh = null;
         let camera = null;
+        let app = null;
 
-        // 1. 初始化 Pixi 应用
-        const app = new Application({
-            view: document.getElementById('canvas'),
-            autoStart: true,
-            resizeTo: window,
-            backgroundColor: 0x202020
-        });
+        // 1. 初始化 Pixi 应用 (独立函数)
+        function initPixi() {
+            app = new Application({
+                view: document.getElementById('canvas'),
+                autoStart: true,
+                resizeTo: window,
+                backgroundColor: 0x202020
+            });
+            console.log("Pixi initialized");
+        }
 
         // 2. 加载模型函数 (支持 URL 字符串或配置对象)
         async function loadModel(source) {
@@ -148,9 +192,12 @@
                 if (currentModel) {
                     app.stage.removeChild(currentModel);
                     currentModel.destroy();
+                    currentModel = null;
                 }
 
+                console.log("Starting model load...");
                 const model = await Live2DModel.from(source);
+                
                 currentModel = model;
                 app.stage.addChild(model);
 
@@ -158,6 +205,7 @@
                 const modelWidth = model.width || 800; // 防止为 0
                 const modelHeight = model.height || 800;
                 
+                // 保守的缩放逻辑
                 let scaleX = (innerWidth * 0.4) / modelWidth;
                 let scaleY = (innerHeight * 0.8) / modelHeight;
                 let scale = Math.min(scaleX, scaleY);
@@ -187,58 +235,28 @@
             const core = currentModel.internalModel.coreModel;
             const motionManager = currentModel.internalModel.motionManager;
 
-            // 这是一个简单的参数映射辅助函数
             const setParam = (id, value) => {
-                // 部分模型可能会有自动眨眼或呼吸，这里可以选择性关闭或覆盖
-                 if (motionManager.expressionManager) {
-                    // motionManager.expressionManager.restore(); 
-                 }
-                
-                // 尝试设置参数
-                // Pixi-Live2d-Display 并没有直接暴露 setParameterValueById 在最外层
-                // 但通常可以通过 internalModel.coreModel 访问
-                if (core.setParameterValueById) {
+                 if (core.setParameterValueById) {
                     core.setParameterValueById(id, value);
-                } else {
-                    // 兼容旧版 SDK
-                    // core.setParamFloat(id, value); 
-                }
+                } 
             };
 
-            // Kalidokit 提供了非常方便的 Live2D 命名映射
             const head = riggedFace.head;
             const eye = riggedFace.eye;
             const mouth = riggedFace.mouth;
 
-            // --- 头部旋转 ---
-            // Kalidokit: Y=Yaw(摇头), X=Pitch(点头), Z=Roll(歪头)
-            // Live2D: ParamAngleX(摇头), ParamAngleY(点头), ParamAngleZ(歪头)
-            // 范围通常是 -30 到 30
-            
-            // 注意：方向可能需要反转
             if(core.setParameterValueById) {
                 core.setParameterValueById('ParamAngleX', head.degrees.y); 
                 core.setParameterValueById('ParamAngleY', head.degrees.x);
                 core.setParameterValueById('ParamAngleZ', head.degrees.z);
-
-                // --- 眼睛 ---
-                // ParamEyeLOpen / ParamEyeROpen (0~1)
                 core.setParameterValueById('ParamEyeLOpen', 1 - eye.l);
                 core.setParameterValueById('ParamEyeROpen', 1 - eye.r);
-
-                // 眼球 X/Y (-1~1)
                 if (riggedFace.pupil) {
                     core.setParameterValueById('ParamEyeBallX', riggedFace.pupil.x);
                     core.setParameterValueById('ParamEyeBallY', riggedFace.pupil.y);
                 }
-
-                // --- 嘴巴 ---
-                // ParamMouthOpenY (0~1)
                 core.setParameterValueById('ParamMouthOpenY', mouth.y);
-                // 嘴型修正 (微笑/难过)
-                core.setParameterValueById('ParamMouthForm', 0.3 + mouth.x); // 稍微默认带点微笑
-
-                // --- 身体 ---
+                core.setParameterValueById('ParamMouthForm', 0.3 + mouth.x);
                 core.setParameterValueById('ParamBodyAngleX', head.degrees.y * 0.5);
                 core.setParameterValueById('ParamBodyAngleY', head.degrees.x * 0.5);
                 core.setParameterValueById('ParamBodyAngleZ', head.degrees.z * 0.5);
@@ -249,9 +267,12 @@
         async function initCamera() {
             const statusText = document.getElementById('status-text');
             const videoElement = document.getElementById('video-preview');
+            const canvasElement = document.getElementById('output-canvas');
+            const canvasCtx = canvasElement.getContext('2d');
+            const videoContainer = document.getElementById('video-container');
             
             statusText.innerText = "正在初始化摄像头...";
-            videoElement.style.display = "block";
+            videoContainer.style.display = "block";
 
             try {
                 faceMesh = new FaceMesh({locateFile: (file) => {
@@ -266,10 +287,23 @@
                 });
 
                 faceMesh.onResults((results) => {
+                    canvasCtx.save();
+                    canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+                    
                     if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
                         const landmarks = results.multiFaceLandmarks[0];
-                        
-                        // 使用 Kalidokit 解算
+
+                        // 绘制面部网格
+                        if (window.drawConnectors && window.drawLandmarks) {
+                            drawConnectors(canvasCtx, landmarks, FACEMESH_TESSELATION, {color: '#C0C0C070', lineWidth: 1});
+                            drawConnectors(canvasCtx, landmarks, FACEMESH_RIGHT_EYE, {color: '#FF3030'});
+                            drawConnectors(canvasCtx, landmarks, FACEMESH_RIGHT_EYEBROW, {color: '#FF3030'});
+                            drawConnectors(canvasCtx, landmarks, FACEMESH_LEFT_EYE, {color: '#30FF30'});
+                            drawConnectors(canvasCtx, landmarks, FACEMESH_LEFT_EYEBROW, {color: '#30FF30'});
+                            drawConnectors(canvasCtx, landmarks, FACEMESH_FACE_OVAL, {color: '#E0E0E0'});
+                            drawConnectors(canvasCtx, landmarks, FACEMESH_LIPS, {color: '#E0E0E0'});
+                        }
+
                         const riggedFace = Face.solve(landmarks, {
                             runtime: 'mediapipe',
                             video: videoElement
@@ -279,6 +313,7 @@
                             updateLive2D(riggedFace);
                         }
                     }
+                    canvasCtx.restore();
                 });
 
                 camera = new Camera(videoElement, {
@@ -289,9 +324,13 @@
                     height: 480
                 });
 
+                camera.camera_ = { ...camera.camera_, width: 640, height: 480 }; 
+                canvasElement.width = 640;
+                canvasElement.height = 480;
+
                 await camera.start();
-                statusText.innerText = "摄像头正在运行";
-                document.getElementById('btn-camera').disabled = true; // 防止重复点击
+                statusText.innerText = "摄像头正在运行 (v1.1)";
+                document.getElementById('btn-camera').disabled = true;
 
             } catch (err) {
                 console.error(err);
@@ -394,6 +433,9 @@
             }
         });
 
+        // 启动逻辑
+        initPixi(); // 立即初始化 Pixi
+
         // UI 事件绑定
         document.getElementById('btn-load').addEventListener('click', () => {
             const url = document.getElementById('model-url').value;
@@ -412,14 +454,13 @@
         // 窗口大小改变时重置模型位置
         window.onresize = () => {
             if (currentModel) {
-                 const scaleX = (innerWidth * 0.4) / currentModel.width;
-                const scaleY = (innerHeight * 0.8) / currentModel.height;
+                 const scaleX = (innerWidth * 0.4) / (currentModel.width || 800);
+                const scaleY = (innerHeight * 0.8) / (currentModel.height || 800);
                 const scale = Math.min(scaleX, scaleY);
                 // 这里可能需要重新计算原始比例，简单起见不再重复设置
                 currentModel.position.set(innerWidth / 2, innerHeight / 2 + 100);
             }
         };
-
     </script>
 </body>
 </html>
