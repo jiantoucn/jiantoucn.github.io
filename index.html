@@ -308,6 +308,15 @@
             <label style="margin-right: 10px; cursor: pointer;"><input type="checkbox" id="cb-pose" checked> 身体</label>
             <label style="cursor: pointer;"><input type="checkbox" id="cb-hands" checked> 手部</label>
         </div>
+
+        <div style="margin-top: 10px; background: #333; padding: 5px; border-radius: 4px; font-size: 12px;">
+            <div style="font-weight: bold; font-size: 13px; margin-bottom: 5px; color: #3aa0ff;">📡 远程连接 (本机作为显示端)</div>
+            <div style="margin-bottom: 5px;">
+                <span style="color: #aaa;">本机 ID:</span>
+                <span id="peer-id-display" style="font-family: monospace; color: #fff; background: #555; padding: 2px 4px; border-radius: 3px; cursor: pointer; user-select: all;" title="点击复制">正在获取...</span>
+            </div>
+            <div id="remote-status" style="font-size: 11px; color: #ffaa00; margin-top: 3px;">等待连接...</div>
+        </div>
     </div>
 
     <!-- 右侧监控面板 (新) -->

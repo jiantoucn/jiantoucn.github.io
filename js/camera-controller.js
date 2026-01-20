@@ -188,49 +188,58 @@ window.CameraController = {
 
     // 简单的手势数字识别 (0-5, 6, 8)
     detectNumberGesture: function(landmarks) {
-        if (!landmarks) return null;
+        if (!landmarks || landmarks.length < 21) return null;
 
-        const isFingerOpen = (tipIdx, pipIdx) => {
-             const wrist = landmarks[0];
-             const tip = landmarks[tipIdx];
-             const pip = landmarks[pipIdx];
-             const dTip = (tip.x - wrist.x)**2 + (tip.y - wrist.y)**2;
-             const dPip = (pip.x - wrist.x)**2 + (pip.y - wrist.y)**2;
-             return dTip > dPip;
-        };
-        
-        // 拇指判断 (使用小指根部作为参考点)
-        const isThumbOpen = () => {
-             const tip = landmarks[4];
-             const ip = landmarks[3];
-             const ref = landmarks[17]; // Pinky MCP
-             const dTip = (tip.x - ref.x)**2 + (tip.y - ref.y)**2;
-             const dIp = (ip.x - ref.x)**2 + (ip.y - ref.y)**2;
-             return dTip > dIp;
-        };
+        try {
+            const isFingerOpen = (tipIdx, pipIdx) => {
+                 const wrist = landmarks[0];
+                 const tip = landmarks[tipIdx];
+                 const pip = landmarks[pipIdx];
+                 if (!wrist || !tip || !pip) return false;
+                 
+                 const dTip = (tip.x - wrist.x)**2 + (tip.y - wrist.y)**2;
+                 const dPip = (pip.x - wrist.x)**2 + (pip.y - wrist.y)**2;
+                 return dTip > dPip;
+            };
+            
+            // 拇指判断 (使用小指根部作为参考点)
+            const isThumbOpen = () => {
+                 const tip = landmarks[4];
+                 const ip = landmarks[3];
+                 const ref = landmarks[17]; // Pinky MCP
+                 if (!tip || !ip || !ref) return false;
 
-        const thumb = isThumbOpen();
-        const index = isFingerOpen(8, 6);
-        const middle = isFingerOpen(12, 10);
-        const ring = isFingerOpen(16, 14);
-        const pinky = isFingerOpen(20, 18);
+                 const dTip = (tip.x - ref.x)**2 + (tip.y - ref.y)**2;
+                 const dIp = (ip.x - ref.x)**2 + (ip.y - ref.y)**2;
+                 return dTip > dIp;
+            };
 
-        // 特殊手势优先判断
-        // 6: 拇指+小指 (其他关闭)
-        if (thumb && pinky && !index && !middle && !ring) return 6;
-        
-        // 8: 拇指+食指 (其他关闭)
-        if (thumb && index && !middle && !ring && !pinky) return 8;
+            const thumb = isThumbOpen();
+            const index = isFingerOpen(8, 6);
+            const middle = isFingerOpen(12, 10);
+            const ring = isFingerOpen(16, 14);
+            const pinky = isFingerOpen(20, 18);
 
-        // 默认: 计算张开的手指数量
-        let count = 0;
-        if (thumb) count++;
-        if (index) count++;
-        if (middle) count++;
-        if (ring) count++;
-        if (pinky) count++;
-        
-        return count;
+            // 特殊手势优先判断
+            // 6: 拇指+小指 (其他关闭)
+            if (thumb && pinky && !index && !middle && !ring) return 6;
+            
+            // 8: 拇指+食指 (其他关闭)
+            if (thumb && index && !middle && !ring && !pinky) return 8;
+
+            // 默认: 计算张开的手指数量
+            let count = 0;
+            if (thumb) count++;
+            if (index) count++;
+            if (middle) count++;
+            if (ring) count++;
+            if (pinky) count++;
+            
+            return count;
+        } catch (e) {
+            console.warn("Gesture detection error:", e);
+            return null;
+        }
     },
 
     stop: function() {

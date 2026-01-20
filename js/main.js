@@ -15,7 +15,90 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 4. 注册 PWA
     registerSW();
+
+    // 5. 初始化 PeerJS (仅用于左侧 ID 显示，不显示右侧弹窗)
+    initPeerJS();
 });
+
+function initPeerJS() {
+    // 生成随机短 ID (例如: PC-1234)
+    const randomId = 'PC-' + Math.floor(Math.random() * 9000 + 1000);
+    
+    // 初始化 Peer
+    const peer = new Peer(randomId, {
+        debug: 1,
+        config: {
+            'iceServers': [
+                { url: 'stun:stun.l.google.com:19302' },
+                { url: 'stun:stun1.l.google.com:19302' }
+            ]
+        }
+    });
+    
+    const idDisplay = document.getElementById('peer-id-display');
+    const statusDisplay = document.getElementById('remote-status');
+    
+    if (idDisplay) {
+        idDisplay.innerText = "初始化中...";
+        idDisplay.addEventListener('click', () => {
+             navigator.clipboard.writeText(randomId);
+             const original = idDisplay.innerText;
+             idDisplay.innerText = "已复制!";
+             setTimeout(() => idDisplay.innerText = original, 1000);
+        });
+    }
+
+    peer.on('open', (id) => {
+        console.log('My Peer ID is: ' + id);
+        if (idDisplay) idDisplay.innerText = id;
+        if (statusDisplay) statusDisplay.innerText = "等待手机连接...";
+    });
+    
+    peer.on('connection', (conn) => {
+        console.log('Remote connected:', conn.peer);
+        if (statusDisplay) {
+            statusDisplay.innerText = "✅ 设备已连接";
+            statusDisplay.style.color = "#0f0";
+        }
+        
+        // 自动禁用本地摄像头按钮，避免冲突
+        const camBtn = document.getElementById('btn-camera');
+        if (camBtn && !camBtn.disabled) {
+            camBtn.innerText = "📷 远程接管中";
+            camBtn.disabled = true;
+        }
+
+        conn.on('data', (data) => {
+            // 构造兼容的 riggedData 对象
+            const riggedData = {
+                face: data.face,
+                pose: data.pose,
+                raw: {}, 
+                fps: '-- (Remote)' 
+            };
+            
+            Live2DController.update(riggedData);
+            updateDebugUI(riggedData);
+        });
+        
+        conn.on('close', () => {
+            if (statusDisplay) {
+                statusDisplay.innerText = "❌ 连接断开";
+                statusDisplay.style.color = "#ffaa00";
+            }
+            // 恢复本地摄像头按钮
+            if (camBtn) {
+                camBtn.innerText = "📷 开启摄像头";
+                camBtn.disabled = false;
+            }
+        });
+    });
+    
+    peer.on('error', (err) => {
+        console.error('PeerJS Error:', err);
+        if (statusDisplay) statusDisplay.innerText = "离线模式";
+    });
+}
 
 function bindEvents() {
     // 预设选择改变
