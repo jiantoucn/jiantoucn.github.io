@@ -117,30 +117,20 @@
 <body>
 
     <div id="ui-layer">
-        <h3>Live2D 面部捕捉 <span style="font-size: 0.6em; color: #888; background: #333; padding: 2px 4px; border-radius: 4px;">v1.10</span></h3>
+        <h3>Live2D 面部捕捉 <span style="font-size: 0.6em; color: #888; background: #333; padding: 2px 4px; border-radius: 4px;">v1.11</span></h3>
         
-        <!-- 本地上传区域 -->
-        <div style="margin-bottom: 15px; border-bottom: 1px solid #444; padding-bottom: 15px;">
-            <label style="display:block; margin-bottom:5px; font-weight:bold;">方式一：上传模型压缩包 (推荐)</label>
-            <div style="font-size: 12px; color: #ccc; margin-bottom: 8px;">
-                请上传包含模型的 <code style="background:#444; padding:2px;">.zip</code> 文件
-            </div>
-            <input type="file" id="file-input" accept=".zip" style="display: none;">
-            <button onclick="document.getElementById('file-input').click()" style="background: #28a745;">📦 选择 ZIP 压缩包</button>
-        </div>
-
         <!-- 网络链接区域 -->
         <div style="margin-bottom: 10px;">
-            <label style="display:block; margin-bottom:5px; font-weight:bold;">方式二：网络链接 / 预设</label>
+            <label style="display:block; margin-bottom:5px; font-weight:bold;">选择模型 / 输入链接</label>
             <select id="preset-select" style="width:100%; padding:5px; margin-bottom:5px; background:#333; color:white; border:1px solid #555;">
-                <option value="miku/runtime/miku.model3.json" selected>Miku (本地)</option>
-                <option value="hiyori_free_zh/runtime/hiyori_free_t08.model3.json">Hiyori (本地)</option>
-                <option value="mark_free_zh/runtime/mark_free_t04.model3.json">Mark (本地)</option>
-                <option value="kei_en/kei_basic_free/runtime/kei_basic_free.model3.json">Kei Basic (本地)</option>
-                <option value="kei_en/kei_vowels_pro/runtime/kei_vowels_pro.model3.json">Kei Vowels (本地)</option>
+                <option value="models/miku/runtime/miku.model3.json" selected>Miku (本地)</option>
+                <option value="models/hiyori_free_zh/runtime/hiyori_free_t08.model3.json">Hiyori (本地)</option>
+                <option value="models/mark_free_zh/runtime/mark_free_t04.model3.json">Mark (本地)</option>
+                <option value="models/kei_en/kei_basic_free/runtime/kei_basic_free.model3.json">Kei Basic (本地)</option>
+                <option value="models/kei_en/kei_vowels_pro/runtime/kei_vowels_pro.model3.json">Kei Vowels (本地)</option>
                 <option value="https://cdn.jsdelivr.net/gh/guansss/pixi-live2d-display/test/assets/haru/haru_greeter_t03.model3.json">Haru (在线)</option>
             </select>
-            <input type="text" id="model-url" placeholder="输入 .model3.json 链接" value="miku/runtime/miku.model3.json">
+            <input type="text" id="model-url" placeholder="输入 .model3.json 链接" value="models/miku/runtime/miku.model3.json">
             <button id="btn-load">🌐 加载模型</button>
         </div>
 
