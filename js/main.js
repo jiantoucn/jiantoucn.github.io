@@ -127,13 +127,16 @@ function bindEvents() {
         
         try {
             await CameraController.init('video-preview', 'output-canvas', (riggedFace) => {
-                // 更新 Live2D
-                Live2DController.update(riggedFace);
-                
-                // 更新 UI 调试信息
-                updateDebugUI(riggedFace);
+                try {
+                    Live2DController.update(riggedFace);
+                    updateDebugUI(riggedFace);
+                } catch (err) {
+                    console.error('Rigged data handling error:', err);
+                    const debugEl = document.getElementById('debug-container');
+                    if (debugEl) debugEl.innerText = `数据处理错误: ${err.message}`;
+                }
             });
-            statusText.innerText = "摄像头正在运行 (v1.32)";
+            statusText.innerText = "摄像头正在运行 (v1.33.1)";
             document.getElementById('btn-camera').disabled = true;
             
             // 显示监控面板
@@ -226,15 +229,30 @@ function updateDebugUI(riggedData) {
     let html = '';
 
     if (face) {
-        const head = face.head;
+        const head = face.head || {};
+        const headDeg = head.degrees || {};
+        const mouth = face.mouth || {};
+        const mouthShape = mouth.shape || {};
+        const eye = face.eye || {};
+        const mouthY = Number.isFinite(mouth.y) ? mouth.y.toFixed(2) : 'N/A';
+        const mouthA = Number.isFinite(mouthShape.A) ? mouthShape.A.toFixed(2) : 'N/A';
+        const mouthI = Number.isFinite(mouthShape.I) ? mouthShape.I.toFixed(2) : 'N/A';
+        const eyeL = Number.isFinite(eye.l) ? eye.l.toFixed(2) : 'N/A';
+        const eyeR = Number.isFinite(eye.r) ? eye.r.toFixed(2) : 'N/A';
+        const headX = Number.isFinite(headDeg.x) ? headDeg.x.toFixed(1) : 'N/A';
+        const headY = Number.isFinite(headDeg.y) ? headDeg.y.toFixed(1) : 'N/A';
+        const headZ = Number.isFinite(headDeg.z) ? headDeg.z.toFixed(1) : 'N/A';
+        const pupilX = face.pupil && Number.isFinite(face.pupil.x) ? face.pupil.x.toFixed(2) : 'N/A';
+        const pupilY = face.pupil && Number.isFinite(face.pupil.y) ? face.pupil.y.toFixed(2) : 'N/A';
+
         html += `[FACE]
-Pitch: ${head.degrees.x.toFixed(1)}°
-Yaw:   ${head.degrees.y.toFixed(1)}°
-Roll:  ${head.degrees.z.toFixed(1)}°
-Mouth: ${face.mouth.y.toFixed(2)} (${face.mouth.shape.A.toFixed(2)}, ${face.mouth.shape.I.toFixed(2)})
-Eye L: ${face.eye.l.toFixed(2)}
-Eye R: ${face.eye.r.toFixed(2)}
-Pupil: X=${face.pupil ? face.pupil.x.toFixed(2) : 'N/A'}, Y=${face.pupil ? face.pupil.y.toFixed(2) : 'N/A'}
+Pitch: ${headX}°
+Yaw:   ${headY}°
+Roll:  ${headZ}°
+Mouth: ${mouthY} (${mouthA}, ${mouthI})
+Eye L: ${eyeL}
+Eye R: ${eyeR}
+Pupil: X=${pupilX}, Y=${pupilY}
 `;
     } else {
         html += `[FACE] Not Detected\n`;

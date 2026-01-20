@@ -189,8 +189,6 @@ window.CameraController = {
             }
         } catch (err) {
             console.error("Critical error in handleResults:", err);
-            // 尝试恢复上下文，防止下一次绘制失败
-            if (this.canvasCtx) this.canvasCtx.restore(); 
         }
     },
 
