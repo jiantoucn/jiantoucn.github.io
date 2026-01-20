@@ -1,0 +1,30 @@
+{
+	"Version": 3,
+	"FileReferences": {
+		"Moc": "试用版(水印不可去除).moc3",
+		"Textures": [
+			"试用版(水印不可去除).8192/texture_00.png",
+			"试用版(水印不可去除).8192/texture_01.png"
+		],
+		"Physics": "试用版(水印不可去除).physics3.json",
+		"DisplayInfo": "试用版(水印不可去除).cdi3.json"
+	},
+	"Groups": [
+		{
+			"Target": "Parameter",
+			"Name": "LipSync",
+			"Ids": [
+				"ParamMouthForm2",
+				"ParamMouthOpenY"
+			]
+		},
+		{
+			"Target": "Parameter",
+			"Name": "EyeBlink",
+			"Ids": [
+				"ParamEyeLOpen",
+				"ParamEyeROpen"
+			]
+		}
+	]
+}

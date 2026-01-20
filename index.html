@@ -12,6 +12,10 @@
     <link rel="preload" href="models/kei_en/kei_vowels_pro/runtime/kei_vowels_pro.model3.json" as="fetch" crossorigin="anonymous">
     <link rel="preload" href="models/kei_en/kei_vowels_pro/runtime/kei_vowels_pro.moc3" as="fetch" crossorigin="anonymous">
     <link rel="preload" href="models/kei_en/kei_vowels_pro/runtime/kei_vowels_pro.2048/texture_00.png" as="image">
+    <link rel="preload" href="models/小海豹试用版/试用版(水印不可去除).model3.json" as="fetch" crossorigin="anonymous">
+    <link rel="preload" href="models/小海豹试用版/试用版(水印不可去除).moc3" as="fetch" crossorigin="anonymous">
+    <link rel="preload" href="models/小海豹试用版/试用版(水印不可去除).8192/texture_00.png" as="image">
+    <link rel="preload" href="models/小海豹试用版/试用版(水印不可去除).8192/texture_01.png" as="image">
     <style>
         body { margin: 0; overflow: hidden; background-color: #202020; font-family: sans-serif; }
         #canvas { width: 100vw; height: 100vh; display: block; }
@@ -143,7 +147,7 @@
 <body>
 
     <div id="ui-layer">
-        <h3>Live2D 面部捕捉 <span style="font-size: 0.6em; color: #888; background: #333; padding: 2px 4px; border-radius: 4px;">v1.16</span></h3>
+        <h3>Live2D 面部捕捉 <span style="font-size: 0.6em; color: #888; background: #333; padding: 2px 4px; border-radius: 4px;">v1.17</span></h3>
         
         <!-- 网络链接区域 -->
         <div style="margin-bottom: 10px;">
@@ -152,6 +156,7 @@
                 <option value="models/kei_en/kei_basic_free/runtime/kei_basic_free.model3.json">Kei Basic (本地)</option>
                 <option value="models/kei_en/kei_vowels_pro/runtime/kei_vowels_pro.model3.json" selected>Kei Vowels (本地)</option>
                 <option value="models/YMT2.0/YMT2.0.model3.json">YMT2.0 (本地)</option>
+                <option value="models/小海豹试用版/试用版(水印不可去除).model3.json">小海豹 (本地)</option>
             </select>
             <input type="text" id="model-url" placeholder="输入 .model3.json 链接" value="models/kei_en/kei_vowels_pro/runtime/kei_vowels_pro.model3.json">
             <button id="btn-load">🌐 加载模型</button>
