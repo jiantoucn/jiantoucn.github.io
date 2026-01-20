@@ -388,6 +388,8 @@ window.Live2DController = {
             'ParamBodyAngleZ': ['ParamBodyAngleZ', 'PARAM_BODY_ANGLE_Z', 'ParamBodyAngleZ'],
             'ParamEyeLOpen': ['ParamEyeLOpen', 'PARAM_EYE_L_OPEN', 'ParamEyeLOpen'],
             'ParamEyeROpen': ['ParamEyeROpen', 'PARAM_EYE_R_OPEN', 'ParamEyeROpen'],
+            'ParamEyeBallX': ['ParamEyeBallX', 'PARAM_EYE_BALL_X', 'ParamEyeBallX'],
+            'ParamEyeBallY': ['ParamEyeBallY', 'PARAM_EYE_BALL_Y', 'ParamEyeBallY'],
             'ParamMouthOpenY': ['ParamMouthOpenY', 'PARAM_MOUTH_OPEN_Y', 'ParamMouthOpenY']
         };
 
@@ -435,8 +437,9 @@ window.Live2DController = {
         setParam('ParamEyeROpen', eye.r);
         
         if (riggedFace.pupil) {
-            setParam('ParamEyeBallX', riggedFace.pupil.x);
-            setParam('ParamEyeBallY', riggedFace.pupil.y);
+            // 放大眼球移动效果，使其更明显
+            setParam('ParamEyeBallX', riggedFace.pupil.x * 2.0);
+            setParam('ParamEyeBallY', riggedFace.pupil.y * 2.0);
         }
         
         // 嘴巴
@@ -448,19 +451,34 @@ window.Live2DController = {
             const toDegrees = (rad) => rad * 180 / Math.PI;
             const spine = riggedPose.Spine;
             // 映射 Pose 旋转到身体参数 (根据经验调整系数)
-            // Spine.y (Yaw) -> ParamBodyAngleX (Twist)
-            // Spine.x (Pitch) -> ParamBodyAngleY (Lean F/B)
-            // Spine.z (Roll) -> ParamBodyAngleZ (Lean L/R)
-            
-            // 注意：Kalidokit 的坐标系可能需要调整方向
             setParam('ParamBodyAngleX', toDegrees(spine.y) * 1.5); 
             setParam('ParamBodyAngleY', toDegrees(spine.x) * 1.0);
             setParam('ParamBodyAngleZ', toDegrees(spine.z) * 1.0);
+
+            // 艾玛手臂控制 (实验性)
+            // 检测手腕是否高于肩膀
+            // 注意: Kalidokit 的坐标系中 Y 轴向上为正? 不，Kalidokit 输出的是旋转角度。
+            // 我们需要用原始 Landmarks 来判断位置，或者看 Kalidokit 是否有相关输出。
+            // 这里我们无法直接访问原始 Landmarks，只能依赖传入的 data.pose (riggedPose)
+            // Kalidokit Pose 包含 RightArm, LeftArm 等旋转信息
+            
+            // 简单的抬手检测：检查上臂旋转
+            // LeftUpperArm.z 如果很大，说明抬起来了
+            if (riggedPose.LeftUpperArm) {
+                // Z 轴旋转通常对应抬起
+                // 归一化到 0-1
+                let armZ = Math.abs(riggedPose.LeftUpperArm.z); 
+                // 阈值判断
+                let lift = Math.max(0, Math.min(1, (armZ - 0.5) * 2));
+                setParam('Param23', lift); // 抬手
+            }
+
         } else {
             // 回退：仅使用头部数据带动身体
-            setParam('ParamBodyAngleX', head.degrees.y * 0.5);
-            setParam('ParamBodyAngleY', head.degrees.x * 0.5);
-            setParam('ParamBodyAngleZ', head.degrees.z * 0.5);
+            // 增加系数让它更明显
+            setParam('ParamBodyAngleX', head.degrees.y * 1.0); // 0.5 -> 1.0
+            setParam('ParamBodyAngleY', head.degrees.x * 1.0);
+            setParam('ParamBodyAngleZ', head.degrees.z * 1.0);
         }
 
         // 呼吸

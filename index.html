@@ -120,6 +120,66 @@
             margin-top: 4px;
             display: none;
         }
+
+        /* 放大预览样式 */
+        .video-container.expanded {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            margin: 0;
+            padding: 0;
+            z-index: 9999;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .video-container.expanded video,
+        .video-container.expanded canvas {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            /* 保持镜像 */
+            transform: scaleX(-1);
+        }
+        
+        /* 放大时调整 canvas 位置，使其与 video 重合 */
+        .video-container.expanded canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 24px;
+            line-height: 1;
+            cursor: pointer;
+            z-index: 10000;
+            display: none; /* 默认隐藏 */
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+        
+        .close-btn:hover {
+            background: rgba(255, 255, 255, 0.4);
+        }
+
+        .video-container.expanded .close-btn {
+            display: flex;
+        }
     </style>
 
     <!-- 核心依赖 -->
@@ -150,7 +210,7 @@
 <body>
 
     <div id="ui-layer">
-        <h3>Live2D 面部捕捉 <span style="font-size: 0.6em; color: #888; background: #333; padding: 2px 4px; border-radius: 4px;">v1.23</span></h3>
+        <h3>网页摄像头 Live2D 面捕 (v1.25)</h3>
         
         <!-- 网络链接区域 -->
         <div style="margin-bottom: 10px;">
@@ -175,8 +235,17 @@
         <div id="load-progress-text"></div>
         
         <div class="video-container" id="video-container">
+            <button id="video-close-btn" class="close-btn" title="关闭全屏">×</button>
             <video id="video-preview" playsinline></video>
             <canvas id="output-canvas"></canvas>
+        </div>
+
+        <!-- 调试设置面板 -->
+        <div style="margin-top: 10px; background: #333; padding: 5px; border-radius: 4px; font-size: 12px;">
+            <div style="margin-bottom: 5px; font-weight: bold; color: #ddd;">骨骼显示设置</div>
+            <label style="margin-right: 10px; cursor: pointer;"><input type="checkbox" id="cb-face" checked> 面部</label>
+            <label style="margin-right: 10px; cursor: pointer;"><input type="checkbox" id="cb-pose" checked> 身体</label>
+            <label style="cursor: pointer;"><input type="checkbox" id="cb-hands" checked> 手部</label>
         </div>
     </div>
 

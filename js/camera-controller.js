@@ -12,6 +12,13 @@ window.CameraController = {
     lastFpsTime: 0,
     fps: 0,
 
+    // 绘图配置
+    drawConfig: {
+        showFace: true,
+        showPose: true,
+        showHands: true
+    },
+
     init: async function(videoId, canvasId, onResults) {
         this.videoElement = document.getElementById(videoId);
         this.canvasElement = document.getElementById(canvasId);
@@ -67,6 +74,10 @@ window.CameraController = {
         }
     },
 
+    setDrawConfig: function(config) {
+        this.drawConfig = { ...this.drawConfig, ...config };
+    },
+
     handleResults: function(results) {
         // 计算 FPS
         const now = performance.now();
@@ -83,13 +94,13 @@ window.CameraController = {
         canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
         
         // 1. 绘制 Pose
-        if (results.poseLandmarks && window.drawConnectors) {
+        if (results.poseLandmarks && window.drawConnectors && this.drawConfig.showPose) {
             drawConnectors(canvasCtx, results.poseLandmarks, POSE_CONNECTIONS, {color: '#00FF00', lineWidth: 2});
             // drawLandmarks(canvasCtx, results.poseLandmarks, {color: '#FF0000', lineWidth: 1}); // 可选：绘制点
         }
 
         // 2. 绘制 Face
-        if (results.faceLandmarks) {
+        if (results.faceLandmarks && this.drawConfig.showFace) {
             if (window.drawConnectors) {
                 // 绘制详细骨骼
                 drawConnectors(canvasCtx, results.faceLandmarks, FACEMESH_TESSELATION, {color: '#C0C0C070', lineWidth: 1});
@@ -109,7 +120,7 @@ window.CameraController = {
         }
 
         // 3. 绘制 Hands (新增)
-        if (window.drawConnectors && window.HAND_CONNECTIONS) {
+        if (window.drawConnectors && window.HAND_CONNECTIONS && this.drawConfig.showHands) {
             if (results.leftHandLandmarks) {
                 drawConnectors(canvasCtx, results.leftHandLandmarks, HAND_CONNECTIONS, {color: '#CC0000', lineWidth: 2});
                 drawLandmarks(canvasCtx, results.leftHandLandmarks, {color: '#00FF00', lineWidth: 1});
@@ -157,6 +168,7 @@ window.CameraController = {
                         pose: poseRig,
                         leftHand: leftHandRig,
                         rightHand: rightHandRig,
+                        fps: this.fps, // 传递 FPS
                         // 传递原始结果用于调试
                         raw: {
                             faceLandmarks: results.faceLandmarks,

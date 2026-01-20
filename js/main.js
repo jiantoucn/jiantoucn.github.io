@@ -50,7 +50,7 @@ function bindEvents() {
                 // 更新 UI 调试信息
                 updateDebugUI(riggedFace);
             });
-            statusText.innerText = "摄像头正在运行 (v1.23)";
+            statusText.innerText = "摄像头正在运行 (v1.25)";
             document.getElementById('btn-camera').disabled = true;
         } catch (err) {
             statusText.innerText = "摄像头启动失败: " + err.message;
@@ -73,6 +73,42 @@ function bindEvents() {
     window.onresize = () => {
         Live2DController.resizeModel();
     };
+
+    // 绑定骨骼显示设置
+    const cbFace = document.getElementById('cb-face');
+    const cbPose = document.getElementById('cb-pose');
+    const cbHands = document.getElementById('cb-hands');
+    
+    const updateDrawConfig = () => {
+        if (window.CameraController && CameraController.setDrawConfig) {
+            CameraController.setDrawConfig({
+                showFace: cbFace.checked,
+                showPose: cbPose.checked,
+                showHands: cbHands.checked
+            });
+        }
+    };
+
+    if (cbFace) cbFace.addEventListener('change', updateDrawConfig);
+    if (cbPose) cbPose.addEventListener('change', updateDrawConfig);
+    if (cbHands) cbHands.addEventListener('change', updateDrawConfig);
+
+    // 摄像头画面点击放大/缩小
+    const videoContainer = document.getElementById('video-container');
+    const closeBtn = document.getElementById('video-close-btn');
+
+    if (videoContainer) {
+        videoContainer.addEventListener('click', () => {
+            videoContainer.classList.toggle('expanded');
+        });
+    }
+
+    if (closeBtn) {
+        closeBtn.addEventListener('click', (e) => {
+            e.stopPropagation(); // 阻止冒泡
+            videoContainer.classList.remove('expanded');
+        });
+    }
 }
 
 // 调试 UI 更新函数
@@ -107,6 +143,7 @@ Roll:  ${head.degrees.z.toFixed(1)}°
 Mouth: ${face.mouth.y.toFixed(2)} (${face.mouth.shape.A.toFixed(2)}, ${face.mouth.shape.I.toFixed(2)})
 Eye L: ${face.eye.l.toFixed(2)}
 Eye R: ${face.eye.r.toFixed(2)}
+Pupil: X=${face.pupil ? face.pupil.x.toFixed(2) : 'N/A'}, Y=${face.pupil ? face.pupil.y.toFixed(2) : 'N/A'}
 `;
     } else {
         html += `[FACE] Not Detected\n`;
@@ -118,15 +155,25 @@ Eye R: ${face.eye.r.toFixed(2)}
         if (spine) {
             html += `
 [POSE]
-Body X (Twist): ${(spine.y * 180 / Math.PI).toFixed(1)}°
-Body Y (Lean):  ${(spine.x * 180 / Math.PI).toFixed(1)}°
-Body Z (Roll):  ${(spine.z * 180 / Math.PI).toFixed(1)}°
+Body X: ${(spine.y * 180 / Math.PI).toFixed(1)}°
+Body Y: ${(spine.x * 180 / Math.PI).toFixed(1)}°
+Body Z: ${(spine.z * 180 / Math.PI).toFixed(1)}°
 `;
         }
     } else {
         // 根据原始数据判断原因
         if (riggedData.raw && riggedData.raw.poseLandmarks) {
-             html += `\n[POSE] Calculation Failed (Try showing shoulders)`;
+             // 检查肩膀可见性 (Landmarks 11 & 12)
+             const lm = riggedData.raw.poseLandmarks;
+             const leftShoulder = lm[11];
+             const rightShoulder = lm[12];
+             const isVisible = (p) => p && p.visibility > 0.5;
+             
+             if (isVisible(leftShoulder) && isVisible(rightShoulder)) {
+                 html += `\n[POSE] Calc Failed (Shoulders OK, maybe too close?)`;
+             } else {
+                 html += `\n[POSE] Calc Failed (Shoulders not visible)`;
+             }
         } else {
              html += `\n[POSE] Not Detected (Move further back)`;
         }
@@ -136,9 +183,16 @@ Body Z (Roll):  ${(spine.z * 180 / Math.PI).toFixed(1)}°
     const raw = riggedData.raw || {};
     html += `\n[RAW] Face: ${raw.faceLandmarks ? 'OK' : 'NO'}, Pose: ${raw.poseLandmarks ? 'OK' : 'NO'}`;
     
-    // FPS
+    // FPS & Memory
     if (riggedData.fps) {
         html += ` | FPS: ${riggedData.fps}`;
+    }
+    
+    if (window.performance && window.performance.memory) {
+        const mem = window.performance.memory;
+        const used = (mem.usedJSHeapSize / 1048576).toFixed(1);
+        const total = (mem.totalJSHeapSize / 1048576).toFixed(1);
+        html += `\n[MEM] ${used} / ${total} MB`;
     }
 
     debugEl.innerText = html;
