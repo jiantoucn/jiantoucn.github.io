@@ -50,15 +50,12 @@ function bindEvents() {
                 // 更新 UI 调试信息
                 updateDebugUI(riggedFace);
             });
-            statusText.innerText = "摄像头正在运行 (v1.10)";
+            statusText.innerText = "摄像头正在运行 (v1.11)";
             document.getElementById('btn-camera').disabled = true;
         } catch (err) {
             statusText.innerText = "摄像头启动失败: " + err.message;
         }
     });
-
-    // ZIP 文件上传
-    document.getElementById('file-input').addEventListener('change', handleZipUpload);
 
     // 刷新按钮
     document.getElementById('btn-refresh').addEventListener('click', () => {

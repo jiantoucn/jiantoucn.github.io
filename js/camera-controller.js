@@ -29,7 +29,7 @@ window.CameraController = {
             // 优化配置：关闭 refineLandmarks 以提高速度
             this.faceMesh.setOptions({
                 maxNumFaces: 1,
-                refineLandmarks: false, // 牺牲一点瞳孔精度换取速度
+                refineLandmarks: true, // 恢复高精度
                 minDetectionConfidence: 0.5,
                 minTrackingConfidence: 0.5
             });
@@ -67,11 +67,20 @@ window.CameraController = {
 
             // 绘制面部网格
             if (window.drawConnectors) {
-                // 减少绘制内容以提高性能，只画轮廓和五官
-                drawConnectors(canvasCtx, landmarks, FACEMESH_RIGHT_EYE, {color: '#FF3030', lineWidth: 1});
-                drawConnectors(canvasCtx, landmarks, FACEMESH_LEFT_EYE, {color: '#30FF30', lineWidth: 1});
-                drawConnectors(canvasCtx, landmarks, FACEMESH_FACE_OVAL, {color: '#E0E0E0', lineWidth: 1});
-                drawConnectors(canvasCtx, landmarks, FACEMESH_LIPS, {color: '#E0E0E0', lineWidth: 1});
+                // 绘制详细骨骼
+                drawConnectors(canvasCtx, landmarks, FACEMESH_TESSELATION, {color: '#C0C0C070', lineWidth: 1});
+                drawConnectors(canvasCtx, landmarks, FACEMESH_RIGHT_EYE, {color: '#FF3030', lineWidth: 2});
+                drawConnectors(canvasCtx, landmarks, FACEMESH_RIGHT_EYEBROW, {color: '#FF3030', lineWidth: 2});
+                drawConnectors(canvasCtx, landmarks, FACEMESH_LEFT_EYE, {color: '#30FF30', lineWidth: 2});
+                drawConnectors(canvasCtx, landmarks, FACEMESH_LEFT_EYEBROW, {color: '#30FF30', lineWidth: 2});
+                drawConnectors(canvasCtx, landmarks, FACEMESH_FACE_OVAL, {color: '#E0E0E0', lineWidth: 2});
+                drawConnectors(canvasCtx, landmarks, FACEMESH_LIPS, {color: '#E0E0E0', lineWidth: 2});
+                
+                // 绘制虹膜
+                if (window.FACEMESH_RIGHT_IRIS) {
+                     drawConnectors(canvasCtx, landmarks, FACEMESH_RIGHT_IRIS, {color: '#FF3030', lineWidth: 2});
+                     drawConnectors(canvasCtx, landmarks, FACEMESH_LEFT_IRIS, {color: '#30FF30', lineWidth: 2});
+                }
             }
 
             // 使用 Kalidokit 解算

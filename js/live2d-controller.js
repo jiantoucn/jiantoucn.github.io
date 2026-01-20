@@ -52,10 +52,14 @@ window.Live2DController = {
 
             // 关键：在模型更新循环中应用我们的面捕数据
             model.on('update', () => {
+                // console.log("Model update event fired"); // 调试用
                 if (this.lastRiggedFace) {
                     this.applyFaceData(model, this.lastRiggedFace);
                 }
             });
+            
+            // 确保 ticker 也在运行
+            if (!model.ticker.started) model.ticker.start();
             
             this.currentModel = model;
             this.app.stage.addChild(model);
@@ -109,6 +113,7 @@ window.Live2DController = {
 
         // 兼容 Cubism 4 (setParameterValueById) 和 Cubism 2 (setParamFloat)
         const setParam = (id, value) => {
+            // console.log(`Setting param ${id} to ${value}`); // 调试日志
             if (core.setParameterValueById) {
                 core.setParameterValueById(id, value);
             } else if (core.setParamFloat) {
@@ -140,11 +145,24 @@ window.Live2DController = {
 
         // 设置参数
         // 注意：Live2D 参数通常需要每帧设置，因为 internalModel 会在更新开始时重置它们
+        
+        // 头部旋转
         setParam('ParamAngleX', head.degrees.y); 
         setParam('ParamAngleY', head.degrees.x);
         setParam('ParamAngleZ', head.degrees.z);
-        setParam('ParamEyeLOpen', 1 - eye.l);
-        setParam('ParamEyeROpen', 1 - eye.r);
+        
+        // 眼睛开合 (1 是开，0 是关，Mediapipe 也是 1 是开)
+        // 注意：Kalidokit 输出的 eye.l/r 也是 1 是开，但有时候需要反转，视模型而定
+        // 通常 Cubism 默认 1 是开，0 是闭。
+        setParam('ParamEyeLOpen', 1 - eye.l); // Kalidokit: 0 is closed, 1 is open. Wait, Kalidokit doc says: 1 is open?
+        setParam('ParamEyeROpen', 1 - eye.r); // Let's try direct mapping first, or 1 - x if it's reversed.
+        // Correction: Kalidokit eye open is 0 to 1. 1 is wide open, 0 is closed.
+        // Cubism ParamEyeLOpen: 1 is open, 0 is closed.
+        // If Kalidokit returns 0 for closed, then we should pass 0.
+        // Previous code was 1 - eye.l, which means if eye is closed (0), we pass 1 (open). That's inverted!
+        // Let's fix this.
+        setParam('ParamEyeLOpen', eye.l);
+        setParam('ParamEyeROpen', eye.r);
         
         if (riggedFace.pupil) {
             setParam('ParamEyeBallX', riggedFace.pupil.x);
@@ -153,8 +171,13 @@ window.Live2DController = {
         
         setParam('ParamMouthOpenY', mouth.y);
         setParam('ParamMouthForm', mouth.x); 
+        
+        // 身体跟随头部
         setParam('ParamBodyAngleX', head.degrees.y * 0.5);
         setParam('ParamBodyAngleY', head.degrees.x * 0.5);
         setParam('ParamBodyAngleZ', head.degrees.z * 0.5);
+
+        // 呼吸 (可选)
+        setParam('ParamBreath', (Date.now() % 1000) / 1000);
     }
 };
