@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Live2D 面部捕捉 Web 演示</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#007bff">
     <style>
         body { margin: 0; overflow: hidden; background-color: #202020; font-family: sans-serif; }
         #canvas { width: 100vw; height: 100vh; display: block; }
@@ -113,7 +115,7 @@
 <body>
 
     <div id="ui-layer">
-        <h3>Live2D 面部捕捉 <span style="font-size: 0.6em; color: #888; background: #333; padding: 2px 4px; border-radius: 4px;">v1.2</span></h3>
+        <h3>Live2D 面部捕捉 <span style="font-size: 0.6em; color: #888; background: #333; padding: 2px 4px; border-radius: 4px;">v1.3</span></h3>
         
         <!-- 本地上传区域 -->
         <div style="margin-bottom: 15px; border-bottom: 1px solid #444; padding-bottom: 15px;">
@@ -147,7 +149,7 @@
     <canvas id="canvas"></canvas>
 
     <script>
-        // 版本 v1.1 - 最保守初始化 + 骨骼可视化
+        // 版本 v1.3 - PWA 支持 + 最保守初始化 + 骨骼可视化
         const { Application } = PIXI;
         // 确保 PIXI.live2d 存在
         if (!PIXI.live2d) {
@@ -436,6 +438,17 @@
 
         // 启动逻辑
         initPixi(); // 立即初始化 Pixi
+
+        // 注册 Service Worker (PWA)
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').then(registration => {
+                    console.log('SW registered: ', registration);
+                }).catch(registrationError => {
+                    console.log('SW registration failed: ', registrationError);
+                });
+            });
+        }
 
         // UI 事件绑定
         document.getElementById('btn-load').addEventListener('click', () => {
