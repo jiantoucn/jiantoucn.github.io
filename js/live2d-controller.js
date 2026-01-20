@@ -415,81 +415,109 @@ window.Live2DController = {
         const mouth = riggedFace.mouth;
 
         // 平滑处理参数 (Lerp)
-        // lerp(current, target, factor) -> factor 越小越平滑，但延迟越高
-        // factor 0.1 ~ 0.3 比较平衡
-        // 增加自适应平滑：大幅度运动响应快，小幅度运动更平滑
-        const lerp = (current, target, factor) => {
-            const diff = Math.abs(target - current);
-            // 如果差异很大（快速转头），使用更大的系数（0.7）以减少延迟
-            // 如果差异很小（微小抖动），使用更小的系数（0.1）以增加稳定性
-            let adaptiveFactor = factor;
-            if (diff > 0.5) adaptiveFactor = 0.7;
-            else if (diff < 0.05) adaptiveFactor = 0.08;
-            
-            return current * (1 - adaptiveFactor) + target * adaptiveFactor;
-        };
-
-        // 状态保持 (用于平滑)
-        if (!this.lastParam) this.lastParam = {}; 
-
-        // 辅助函数：设置参数值（带平滑）
-        const setParam = (id, value, weight = 1.0) => {
-            if (!model) return;
-            
-            // 应用平滑
-            const lastValue = this.lastParam[id] !== undefined ? this.lastParam[id] : value;
-            const smoothedValue = lerp(lastValue, value, 0.3); // 基础系数 0.3
-            this.lastParam[id] = smoothedValue;
-
-            const ids = PARAM_ALIASES[id] || [id];
-            
-            // 尝试设置每一个别名，直到成功
-            for (const aliasId of ids) {
-                 // Cubism 4
-                 if (model.internalModel && model.internalModel.coreModel) {
-                     // 注意：pixi-live2d-display 的核心参数设置方法
-                     // 标准方法是 model.internalModel.coreModel.setParameterValueById
-                     // 但 pixi 封装层通常会自动处理 update，这里我们直接操作核心参数
-                     
-                     // 检查参数是否存在
-                     const paramIndex = model.internalModel.coreModel.getParameterIndex(aliasId);
-                     if (paramIndex !== -1) {
-                         model.internalModel.coreModel.setParameterValueByIndex(paramIndex, smoothedValue, weight);
-                         return; // 找到并设置后退出
-                     }
-                 }
-                 // Cubism 2
-                 else if (model.internalModel && model.internalModel.setParamFloat) {
-                     // Cubism 2 并没有简单的 exists 判断，通常直接设置不会报错但可能无效
-                     try {
-                        model.internalModel.setParamFloat(aliasId, smoothedValue, weight);
-                     } catch(e) {}
-                 }
-            }
-        };
-
-
-        // 头部旋转
-        setParam('ParamAngleX', head.degrees.y); 
-        setParam('ParamAngleY', head.degrees.x);
-        setParam('ParamAngleZ', head.degrees.z);
+    // 改进的自适应平滑：根据参数类型和变化幅度动态调整
+    const lerp = (current, target, baseFactor, isAngle = false) => {
+        const diff = Math.abs(target - current);
         
-        // 眼睛 (添加阈值处理，确保能完全闭合)
-        // Kalidokit 虽然有 smoothBlink，但有时输出不够低
-        const clampEye = (val) => {
-            if (val < 0.2) return 0; // 强制闭眼阈值
-            // 重新映射 0.2~1.0 -> 0.0~1.0
-            return (val - 0.2) / 0.8;
-        };
-
-        this.lastEyeL = lerp(this.lastEyeL, clampEye(eye.l), 0.5);
-        this.lastEyeR = lerp(this.lastEyeR, clampEye(eye.r), 0.5);
-
-        setParam('ParamEyeLOpen', this.lastEyeL);
-        setParam('ParamEyeROpen', this.lastEyeR);
+        // 动态系数计算
+        let dynamicFactor = baseFactor;
         
-        if (riggedFace.pupil) {
-            this.lastPupilX = lerp(this.lastPupilX, riggedFace.pupil.x, 0.5);
+        if (isAngle) {
+            // 角度参数 (范围大 -30~30)
+            // 增加死区防止微小抖动
+            if (diff < 0.5) dynamicFactor = 0.05;      // 极小变动：非常慢的平滑 (防抖)
+            else if (diff > 5.0) dynamicFactor = 0.6;  // 剧烈变动：快速响应
+            else dynamicFactor = 0.15;                 // 正常变动：较慢平滑 (增加重量感)
+        } else {
+            // 0-1 参数 (眼睛/嘴巴)
+            // 需要高响应速度，但必须防止抽搐
+            if (diff > 0.4) dynamicFactor = 0.7;       // 快速眨眼/张嘴
+            else if (diff < 0.1) dynamicFactor = 0.05; // 增加静止阈值 (0.05 -> 0.1)，减少微小抖动
+            else dynamicFactor = 0.15;                 // 普通微动更平滑 (0.2 -> 0.15)
+        }
+        
+        return current + (target - current) * dynamicFactor;
+    };
+
+    // 状态保持
+    if (!this.lastParam) this.lastParam = {}; 
+
+    // 辅助函数：设置参数值（带平滑）
+    const setParam = (id, value, weight = 1.0, isAngle = false) => {
+        if (!model) return;
+        
+        // 应用平滑
+        const lastValue = this.lastParam[id] !== undefined ? this.lastParam[id] : value;
+        // 针对不同参数使用不同的基础系数
+        const baseFactor = isAngle ? 0.15 : 0.4;
+        const smoothedValue = lerp(lastValue, value, baseFactor, isAngle);
+        
+        this.lastParam[id] = smoothedValue;
+
+        const ids = PARAM_ALIASES[id] || [id];
+        
+        // 尝试设置每一个别名，直到成功
+        for (const aliasId of ids) {
+             // Cubism 4
+             if (model.internalModel && model.internalModel.coreModel) {
+                 const paramIndex = model.internalModel.coreModel.getParameterIndex(aliasId);
+                 if (paramIndex !== -1) {
+                     model.internalModel.coreModel.setParameterValueByIndex(paramIndex, smoothedValue, weight);
+                     return;
+                 }
+             }
+             // Cubism 2
+             else if (model.internalModel && model.internalModel.setParamFloat) {
+                 try {
+                    model.internalModel.setParamFloat(aliasId, smoothedValue, weight);
+                 } catch(e) {}
+             }
+        }
+    };
+
+
+    // 头部旋转 (标记为角度参数)
+    setParam('ParamAngleX', head.degrees.y, 1.0, true); 
+    setParam('ParamAngleY', head.degrees.x, 1.0, true);
+    setParam('ParamAngleZ', head.degrees.z, 1.0, true);
+    
+    // 身体旋转
+    // 优先使用 Pose 数据
+    let bodyX = 0, bodyY = 0, bodyZ = 0;
+    
+    if (riggedPose && riggedPose.Spine) {
+        // Spine 输出是弧度，转换为角度
+        bodyX = riggedPose.Spine.y * 180 / Math.PI; // Yaw
+        bodyY = riggedPose.Spine.x * 180 / Math.PI; // Pitch
+        bodyZ = riggedPose.Spine.z * 180 / Math.PI; // Roll
+    } else {
+        // Fallback: 如果没有全身数据，使用头部数据带动身体
+        bodyX = head.degrees.y * 0.5;
+        bodyY = head.degrees.x * 0.5;
+        bodyZ = head.degrees.z * 0.5;
+    }
+
+    // 身体参数设置 (调整幅度)
+    setParam('ParamBodyAngleX', bodyX * 1.5, 1.0, true); // 0.5 -> 1.5 (增强响应)
+    setParam('ParamBodyAngleY', bodyY * 1.0, 1.0, true); // 0.5 -> 1.0
+    setParam('ParamBodyAngleZ', bodyZ * 1.0, 1.0, true); // 0.5 -> 1.0
+    
+    // 眼睛
+    const clampEye = (val) => {
+        if (val < 0.2) return 0;
+        return (val - 0.2) / 0.8;
+    };
+
+    // 眼睛独立平滑 (0-1类型)
+    this.lastEyeL = lerp(this.lastEyeL, clampEye(eye.l), 0.5, false);
+    this.lastEyeR = lerp(this.lastEyeR, clampEye(eye.r), 0.5, false);
+
+    setParam('ParamEyeLOpen', this.lastEyeL, 1.0, false);
+    setParam('ParamEyeROpen', this.lastEyeR, 1.0, false);
+    
+    if (riggedFace.pupil) {
+        // 瞳孔 X/Y 通常范围 -1~1
+        this.lastPupilX = lerp(this.lastPupilX, riggedFace.pupil.x, 0.4, false);
             this.lastPupilY = lerp(this.lastPupilY, riggedFace.pupil.y, 0.5);
             // 放大眼球移动效果，使其更明显
             setParam('ParamEyeBallX', this.lastPupilX * 2.0);
@@ -500,39 +528,14 @@ window.Live2DController = {
         setParam('ParamMouthOpenY', mouth.y);
         setParam('ParamMouthForm', mouth.x); 
         
-        // 身体跟随 / 姿态控制
-        if (riggedPose && riggedPose.Spine) {
-            const toDegrees = (rad) => rad * 180 / Math.PI;
-            const spine = riggedPose.Spine;
-            // 映射 Pose 旋转到身体参数 (根据经验调整系数)
-            setParam('ParamBodyAngleX', toDegrees(spine.y) * 1.5); 
-            setParam('ParamBodyAngleY', toDegrees(spine.x) * 1.0);
-            setParam('ParamBodyAngleZ', toDegrees(spine.z) * 1.0);
-
-            // 艾玛手臂控制 (实验性)
-            // 检测手腕是否高于肩膀
-            // 注意: Kalidokit 的坐标系中 Y 轴向上为正? 不，Kalidokit 输出的是旋转角度。
-            // 我们需要用原始 Landmarks 来判断位置，或者看 Kalidokit 是否有相关输出。
-            // 这里我们无法直接访问原始 Landmarks，只能依赖传入的 data.pose (riggedPose)
-            // Kalidokit Pose 包含 RightArm, LeftArm 等旋转信息
-            
-            // 简单的抬手检测：检查上臂旋转
-            // LeftUpperArm.z 如果很大，说明抬起来了
-            if (riggedPose.LeftUpperArm) {
-                // Z 轴旋转通常对应抬起
-                // 归一化到 0-1
-                let armZ = Math.abs(riggedPose.LeftUpperArm.z); 
-                // 阈值判断
-                let lift = Math.max(0, Math.min(1, (armZ - 0.5) * 2));
-                setParam('Param23', lift); // 抬手
-            }
-
-        } else {
-            // 回退：仅使用头部数据带动身体
-            // 增加系数让它更明显
-            setParam('ParamBodyAngleX', head.degrees.y * 1.0); // 0.5 -> 1.0
-            setParam('ParamBodyAngleY', head.degrees.x * 1.0);
-            setParam('ParamBodyAngleZ', head.degrees.z * 1.0);
+        // 艾玛手臂控制 (实验性)
+        if (riggedPose && riggedPose.LeftUpperArm) {
+             // Z 轴旋转通常对应抬起
+             // 归一化到 0-1
+             let armZ = Math.abs(riggedPose.LeftUpperArm.z); 
+             // 阈值判断
+             let lift = Math.max(0, Math.min(1, (armZ - 0.5) * 2));
+             setParam('Param23', lift); // 抬手
         }
 
         // 呼吸

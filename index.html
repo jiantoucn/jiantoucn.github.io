@@ -277,7 +277,7 @@
 <body>
 
     <div id="ui-layer">
-        <h3>网页摄像头 Live2D 面捕 (v1.30)</h3>
+        <h3 style="margin: 0; color: #3aa0ff;">网页摄像头 Live2D 面捕 (v1.31)</h3>
         
         <!-- 网络链接区域 -->
         <div style="margin-bottom: 10px;">
@@ -307,16 +307,6 @@
             <label style="margin-right: 10px; cursor: pointer;"><input type="checkbox" id="cb-face" checked> 面部</label>
             <label style="margin-right: 10px; cursor: pointer;"><input type="checkbox" id="cb-pose" checked> 身体</label>
             <label style="cursor: pointer;"><input type="checkbox" id="cb-hands" checked> 手部</label>
-        </div>
-
-        <div style="margin-top: 10px; background: #333; padding: 5px; border-radius: 4px; font-size: 12px;">
-            <div style="font-weight: bold; font-size: 13px; margin-bottom: 5px; color: #3aa0ff;">📡 远程连接 (本机作为显示端)</div>
-            <div id="peer-id-display" style="font-family: monospace; font-size: 16px; color: #fff; text-align: center; margin: 5px 0; background: #000; padding: 5px; border-radius: 3px; cursor: pointer;" title="点击复制">正在生成 ID...</div>
-            <div style="font-size: 11px; color: #888;">
-                手机访问: <a href="sender.html" target="_blank" style="color:#aaa;">sender.html</a> 输入上方 ID
-                <button onclick="window.location.href='sender.html'" style="margin-top:5px; background:#444; font-size:11px; padding:3px 8px;">📲 切换到采集端模式</button>
-            </div>
-            <div id="remote-status" style="font-size: 11px; color: #ffaa00; margin-top: 3px;">等待连接...</div>
         </div>
     </div>
 

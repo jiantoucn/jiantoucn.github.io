@@ -160,6 +160,12 @@ window.CameraController = {
                     // 手部解算 (预留)
                     // if (results.leftHandLandmarks) leftHandRig = Kalidokit.Hand.solve(results.leftHandLandmarks, "Left");
                     // if (results.rightHandLandmarks) rightHandRig = Kalidokit.Hand.solve(results.rightHandLandmarks, "Right");
+                    
+                    // 手部数字识别
+                    let leftGesture = null;
+                    let rightGesture = null;
+                    if (results.leftHandLandmarks) leftGesture = this.detectNumberGesture(results.leftHandLandmarks);
+                    if (results.rightHandLandmarks) rightGesture = this.detectNumberGesture(results.rightHandLandmarks);
                 }
 
                 if (this.onResultsCallback) {
@@ -168,6 +174,7 @@ window.CameraController = {
                         pose: poseRig,
                         leftHand: leftHandRig,
                         rightHand: rightHandRig,
+                        gesture: { left: leftGesture, right: rightGesture },
                         fps: this.fps, // 传递 FPS
                         // 传递原始结果用于调试
                         raw: {
@@ -177,5 +184,57 @@ window.CameraController = {
                     });
                 }
         canvasCtx.restore();
+    },
+
+    // 简单的手势数字识别 (0-5, 6, 8)
+    detectNumberGesture: function(landmarks) {
+        if (!landmarks) return null;
+
+        const isFingerOpen = (tipIdx, pipIdx) => {
+             const wrist = landmarks[0];
+             const tip = landmarks[tipIdx];
+             const pip = landmarks[pipIdx];
+             const dTip = (tip.x - wrist.x)**2 + (tip.y - wrist.y)**2;
+             const dPip = (pip.x - wrist.x)**2 + (pip.y - wrist.y)**2;
+             return dTip > dPip;
+        };
+        
+        // 拇指判断 (使用小指根部作为参考点)
+        const isThumbOpen = () => {
+             const tip = landmarks[4];
+             const ip = landmarks[3];
+             const ref = landmarks[17]; // Pinky MCP
+             const dTip = (tip.x - ref.x)**2 + (tip.y - ref.y)**2;
+             const dIp = (ip.x - ref.x)**2 + (ip.y - ref.y)**2;
+             return dTip > dIp;
+        };
+
+        const thumb = isThumbOpen();
+        const index = isFingerOpen(8, 6);
+        const middle = isFingerOpen(12, 10);
+        const ring = isFingerOpen(16, 14);
+        const pinky = isFingerOpen(20, 18);
+
+        // 特殊手势优先判断
+        // 6: 拇指+小指 (其他关闭)
+        if (thumb && pinky && !index && !middle && !ring) return 6;
+        
+        // 8: 拇指+食指 (其他关闭)
+        if (thumb && index && !middle && !ring && !pinky) return 8;
+
+        // 默认: 计算张开的手指数量
+        let count = 0;
+        if (thumb) count++;
+        if (index) count++;
+        if (middle) count++;
+        if (ring) count++;
+        if (pinky) count++;
+        
+        return count;
+    },
+
+    stop: function() {
+        if (this.camera) this.camera.stop();
+        if (this.holistic) this.holistic.close();
     }
 };
