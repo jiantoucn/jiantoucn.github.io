@@ -414,26 +414,58 @@ window.Live2DController = {
         const eye = riggedFace.eye;
         const mouth = riggedFace.mouth;
 
-        // 兼容 Cubism 4 (setParameterValueById) 和 Cubism 2 (setParamFloat)
-        // 支持多别名映射
-        const setParam = (id, value) => {
-            const aliases = PARAM_ALIASES[id] || [id];
-            aliases.forEach(alias => {
-                if (core.setParameterValueById) {
-                    // Cubism 4
-                    core.setParameterValueById(alias, value);
-                } else if (core.setParamFloat) {
-                    // Cubism 2
-                    if (core.getParamIndex) {
-                        const index = core.getParamIndex(alias);
-                        if (index !== -1) {
-                            core.setParamFloat(index, value);
-                            return;
-                        }
-                    }
-                    try { core.setParamFloat(alias, value); } catch(e) {}
-                }
-            });
+        // 平滑处理参数 (Lerp)
+        // lerp(current, target, factor) -> factor 越小越平滑，但延迟越高
+        // factor 0.1 ~ 0.3 比较平衡
+        // 增加自适应平滑：大幅度运动响应快，小幅度运动更平滑
+        const lerp = (current, target, factor) => {
+            const diff = Math.abs(target - current);
+            // 如果差异很大（快速转头），使用更大的系数（0.7）以减少延迟
+            // 如果差异很小（微小抖动），使用更小的系数（0.1）以增加稳定性
+            let adaptiveFactor = factor;
+            if (diff > 0.5) adaptiveFactor = 0.7;
+            else if (diff < 0.05) adaptiveFactor = 0.08;
+            
+            return current * (1 - adaptiveFactor) + target * adaptiveFactor;
+        };
+
+        // 状态保持 (用于平滑)
+        if (!this.lastParam) this.lastParam = {}; 
+
+        // 辅助函数：设置参数值（带平滑）
+        const setParam = (id, value, weight = 1.0) => {
+            if (!model) return;
+            
+            // 应用平滑
+            const lastValue = this.lastParam[id] !== undefined ? this.lastParam[id] : value;
+            const smoothedValue = lerp(lastValue, value, 0.3); // 基础系数 0.3
+            this.lastParam[id] = smoothedValue;
+
+            const ids = PARAM_ALIASES[id] || [id];
+            
+            // 尝试设置每一个别名，直到成功
+            for (const aliasId of ids) {
+                 // Cubism 4
+                 if (model.internalModel && model.internalModel.coreModel) {
+                     // 注意：pixi-live2d-display 的核心参数设置方法
+                     // 标准方法是 model.internalModel.coreModel.setParameterValueById
+                     // 但 pixi 封装层通常会自动处理 update，这里我们直接操作核心参数
+                     
+                     // 检查参数是否存在
+                     const paramIndex = model.internalModel.coreModel.getParameterIndex(aliasId);
+                     if (paramIndex !== -1) {
+                         model.internalModel.coreModel.setParameterValueByIndex(paramIndex, smoothedValue, weight);
+                         return; // 找到并设置后退出
+                     }
+                 }
+                 // Cubism 2
+                 else if (model.internalModel && model.internalModel.setParamFloat) {
+                     // Cubism 2 并没有简单的 exists 判断，通常直接设置不会报错但可能无效
+                     try {
+                        model.internalModel.setParamFloat(aliasId, smoothedValue, weight);
+                     } catch(e) {}
+                 }
+            }
         };
 
 

@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live2D 面捕 - 采集端 (Sender)</title>
+    <style>
+        body { 
+            background: #202020; 
+            color: white; 
+            font-family: sans-serif; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            margin: 0; 
+            padding: 20px;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+        h2 { margin-top: 0; }
+        .container {
+            width: 100%;
+            max-width: 600px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .status-box {
+            background: #333;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        input {
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #555;
+            background: #444;
+            color: white;
+            width: 70%;
+            text-align: center;
+            font-size: 16px;
+        }
+        button {
+            padding: 10px 20px;
+            border-radius: 4px;
+            border: none;
+            background: #007bff;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        button:disabled { background: #555; }
+        
+        #video-preview {
+            width: 100%;
+            border-radius: 8px;
+            transform: scaleX(-1);
+            background: black;
+            margin-top: 10px;
+        }
+        
+        .log {
+            font-family: monospace;
+            font-size: 12px;
+            color: #aaa;
+            margin-top: 10px;
+            height: 100px;
+            overflow-y: auto;
+            background: #111;
+            padding: 5px;
+            border-radius: 4px;
+            text-align: left;
+        }
+    </style>
+    <!-- PeerJS -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <!-- MediaPipe & Kalidokit (与主页一致) -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/holistic/holistic.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/kalidokit@1.1.5/dist/kalidokit.umd.js"></script>
+</head>
+<body>
+
+    <div class="container">
+        <div class="status-box">
+            <h2>📱 采集端</h2>
+            <button onclick="window.location.href='index.html'" style="margin-bottom:15px; background:#444; font-size:12px; padding:5px 10px;">🔙 返回电脑版 (显示端)</button>
+            <p>1. 在电脑端点击 "生成连接码"</p>
+            <p>2. 在下方输入电脑端的连接码</p>
+            <div style="display: flex; gap: 10px; justify-content: center;">
+                <input type="text" id="target-id" placeholder="输入电脑端 ID (例如: PC-1234)">
+                <button id="btn-connect">连接</button>
+            </div>
+            <div id="connection-status" style="margin-top: 10px; color: #ffaa00;">未连接</div>
+        </div>
+
+        <video id="video-preview" playsinline></video>
+        
+        <div class="log" id="log-area"></div>
+    </div>
+
+    <script>
+        const logArea = document.getElementById('log-area');
+        function log(msg) {
+            const div = document.createElement('div');
+            div.innerText = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            logArea.prepend(div);
+        }
+
+        // 1. 初始化 PeerJS
+        const peer = new Peer(null, {
+            debug: 2
+        });
+        
+        let conn = null;
+        let lastSendTime = 0;
+
+        peer.on('open', (id) => {
+            log('本机 Peer ID: ' + id);
+        });
+
+        peer.on('error', (err) => {
+            log('PeerJS 错误: ' + err.type);
+            document.getElementById('connection-status').innerText = "连接错误";
+        });
+
+        // 2. 连接逻辑
+        document.getElementById('btn-connect').addEventListener('click', () => {
+            const targetId = document.getElementById('target-id').value.trim();
+            if (!targetId) return alert('请输入目标 ID');
+            
+            log(`正在连接到 ${targetId}...`);
+            conn = peer.connect(targetId);
+
+            conn.on('open', () => {
+                log('连接成功！开始传输数据...');
+                document.getElementById('connection-status').innerText = "✅ 已连接 - 正在传输";
+                document.getElementById('connection-status').style.color = "#0f0";
+                startCamera();
+            });
+
+            conn.on('close', () => {
+                log('连接已断开');
+                document.getElementById('connection-status').innerText = "❌ 连接断开";
+                document.getElementById('connection-status').style.color = "red";
+            });
+            
+            conn.on('error', (err) => log('连接错误: ' + err));
+        });
+
+        // 3. 摄像头与 MediaPipe 逻辑
+        async function startCamera() {
+            const videoElement = document.getElementById('video-preview');
+            
+            const holistic = new Holistic({locateFile: (file) => {
+                return `https://cdn.jsdelivr.net/npm/@mediapipe/holistic/${file}`;
+            }});
+
+            holistic.setOptions({
+                modelComplexity: 1,
+                smoothLandmarks: true,
+                minDetectionConfidence: 0.5,
+                minTrackingConfidence: 0.5,
+                refineFaceLandmarks: true
+            });
+
+            holistic.onResults(onResults);
+
+            const camera = new Camera(videoElement, {
+                onFrame: async () => {
+                    await holistic.send({image: videoElement});
+                },
+                width: 640,
+                height: 480
+            });
+            
+            log('启动摄像头...');
+            camera.start();
+        }
+
+        function onResults(results) {
+            if (!conn || !conn.open) return;
+
+            // 限制发送频率 (例如 30 FPS)
+            const now = Date.now();
+            if (now - lastSendTime < 30) return; 
+            lastSendTime = now;
+
+            // 使用 Kalidokit 解算
+            const faceLandmarks = results.faceLandmarks;
+            const poseLandmarks = results.poseLandmarks;
+            const ea = results.faceLandmarks ? Kalidokit.Face.solve(faceLandmarks, {
+                runtime: 'mediapipe',
+                video: document.getElementById('video-preview')
+            }) : null;
+
+            const pose = results.poseLandmarks ? Kalidokit.Pose.solve(poseLandmarks, results.poseLandmarks, {
+                runtime: 'mediapipe',
+                video: document.getElementById('video-preview')
+            }) : null;
+            
+            // 简单的数据包
+            const dataPacket = {
+                face: ea,
+                pose: pose,
+                // 这里只发送必要的解算后数据，不发送原始 Landmarks 以节省带宽
+                timestamp: now
+            };
+
+            conn.send(dataPacket);
+        }
+    </script>
+</body>
+</html>

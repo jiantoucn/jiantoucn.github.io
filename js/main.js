@@ -15,7 +15,89 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 4. 注册 PWA
     registerSW();
+    
+    // 5. 初始化 PeerJS 远程接收
+    initPeerJS();
 });
+
+function initPeerJS() {
+    // 生成随机短 ID (例如: PC-1234)
+    const randomId = 'PC-' + Math.floor(Math.random() * 9000 + 1000);
+    
+    // 初始化 Peer
+    const peer = new Peer(randomId, {
+        debug: 1
+    });
+    
+    const idDisplay = document.getElementById('peer-id-display');
+    const statusDisplay = document.getElementById('remote-status');
+    
+    if (idDisplay) {
+        idDisplay.innerText = "初始化中...";
+        idDisplay.addEventListener('click', () => {
+             navigator.clipboard.writeText(randomId);
+             const original = idDisplay.innerText;
+             idDisplay.innerText = "已复制!";
+             setTimeout(() => idDisplay.innerText = original, 1000);
+        });
+    }
+
+    peer.on('open', (id) => {
+        console.log('My Peer ID is: ' + id);
+        if (idDisplay) idDisplay.innerText = id;
+        if (statusDisplay) statusDisplay.innerText = "等待手机连接...";
+    });
+    
+    peer.on('connection', (conn) => {
+        console.log('Remote connected:', conn.peer);
+        if (statusDisplay) {
+            statusDisplay.innerText = "✅ 设备已连接";
+            statusDisplay.style.color = "#0f0";
+        }
+        
+        // 自动禁用本地摄像头按钮，避免冲突
+        const camBtn = document.getElementById('btn-camera');
+        if (camBtn && !camBtn.disabled) {
+            camBtn.innerText = "📷 远程接管中";
+            camBtn.disabled = true;
+        }
+
+        conn.on('data', (data) => {
+            // 接收到远程数据，直接驱动 Live2D
+            // 数据格式: { face: {...}, pose: {...} }
+            
+            // 构造兼容的 riggedData 对象
+            const riggedData = {
+                face: data.face,
+                pose: data.pose,
+                // 远程模式下没有 raw landmarks (为了带宽), 
+                // 但 updateDebugUI 可能需要它们，这里给空对象防止报错
+                raw: {}, 
+                fps: '-- (Remote)' 
+            };
+            
+            Live2DController.update(riggedData);
+            updateDebugUI(riggedData);
+        });
+        
+        conn.on('close', () => {
+            if (statusDisplay) {
+                statusDisplay.innerText = "❌ 连接断开";
+                statusDisplay.style.color = "red";
+            }
+            // 恢复本地摄像头按钮
+            if (camBtn) {
+                camBtn.innerText = "📷 开启摄像头";
+                camBtn.disabled = false;
+            }
+        });
+    });
+    
+    peer.on('error', (err) => {
+        console.error('PeerJS Error:', err);
+        if (statusDisplay) statusDisplay.innerText = "错误: " + err.type;
+    });
+}
 
 function bindEvents() {
     // 预设选择改变
@@ -122,6 +204,19 @@ function bindEvents() {
         monitorHeader.addEventListener('click', () => {
             monitorPanel.classList.toggle('collapsed');
         });
+
+        // 动态注入远程连接 UI
+        const remoteUI = document.createElement('div');
+        remoteUI.innerHTML = `
+            <hr style="border-color: #444; margin: 10px 0;">
+            <div style="background: #2a2a2a; padding: 8px; border-radius: 4px; border: 1px solid #444;">
+                <div style="font-weight: bold; font-size: 13px; margin-bottom: 5px; color: #3aa0ff;">📡 远程连接 (本机作为显示端)</div>
+                <div id="peer-id-display" style="font-family: monospace; font-size: 16px; color: #fff; text-align: center; margin: 5px 0; background: #000; padding: 5px; border-radius: 3px; cursor: pointer;" title="点击复制">正在生成 ID...</div>
+                <div style="font-size: 11px; color: #888;">手机访问: <a href="sender.html" target="_blank" style="color:#aaa;">sender.html</a> 输入上方 ID</div>
+                <div id="remote-status" style="font-size: 11px; color: #ffaa00; margin-top: 3px;">等待连接...</div>
+            </div>
+        `;
+        monitorPanel.appendChild(remoteUI);
     }
 }
 
