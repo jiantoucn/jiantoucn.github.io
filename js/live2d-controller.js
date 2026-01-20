@@ -3,6 +3,16 @@ window.Live2DController = {
     app: null,
     currentModel: null,
     lastRiggedData: null,
+    
+    // 平滑状态存储
+    lastEyeL: 1,
+    lastEyeR: 1,
+    lastPupilX: 0,
+    lastPupilY: 0,
+
+    lerp: function(start, end, amt) {
+        return (1 - amt) * start + amt * end;
+    },
 
     init: function(canvasId) {
         const { Application, Live2DModel } = PIXI;
@@ -432,14 +442,26 @@ window.Live2DController = {
         setParam('ParamAngleY', head.degrees.x);
         setParam('ParamAngleZ', head.degrees.z);
         
-        // 眼睛
-        setParam('ParamEyeLOpen', eye.l);
-        setParam('ParamEyeROpen', eye.r);
+        // 眼睛 (添加阈值处理，确保能完全闭合)
+        // Kalidokit 虽然有 smoothBlink，但有时输出不够低
+        const clampEye = (val) => {
+            if (val < 0.2) return 0; // 强制闭眼阈值
+            // 重新映射 0.2~1.0 -> 0.0~1.0
+            return (val - 0.2) / 0.8;
+        };
+
+        this.lastEyeL = this.lerp(this.lastEyeL, clampEye(eye.l), 0.5);
+        this.lastEyeR = this.lerp(this.lastEyeR, clampEye(eye.r), 0.5);
+
+        setParam('ParamEyeLOpen', this.lastEyeL);
+        setParam('ParamEyeROpen', this.lastEyeR);
         
         if (riggedFace.pupil) {
+            this.lastPupilX = this.lerp(this.lastPupilX, riggedFace.pupil.x, 0.5);
+            this.lastPupilY = this.lerp(this.lastPupilY, riggedFace.pupil.y, 0.5);
             // 放大眼球移动效果，使其更明显
-            setParam('ParamEyeBallX', riggedFace.pupil.x * 2.0);
-            setParam('ParamEyeBallY', riggedFace.pupil.y * 2.0);
+            setParam('ParamEyeBallX', this.lastPupilX * 2.0);
+            setParam('ParamEyeBallY', this.lastPupilY * 2.0);
         }
         
         // 嘴巴

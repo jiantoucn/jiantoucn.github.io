@@ -1,4 +1,4 @@
-const CACHE_NAME = 'live2d-tracker-v1.26';
+const CACHE_NAME = 'live2d-tracker-v1.28';
 const ASSETS = [
   './',
   './index.html',

@@ -50,7 +50,7 @@ function bindEvents() {
                 // 更新 UI 调试信息
                 updateDebugUI(riggedFace);
             });
-            statusText.innerText = "摄像头正在运行 (v1.26)";
+            statusText.innerText = "摄像头正在运行 (v1.27.1)";
             document.getElementById('btn-camera').disabled = true;
             
             // 显示监控面板
@@ -178,7 +178,7 @@ Body Z: ${(spine.z * 180 / Math.PI).toFixed(1)}°
              const isVisible = (p) => p && p.visibility > 0.5;
              
              if (isVisible(leftShoulder) && isVisible(rightShoulder)) {
-                 html += `\n[POSE] Calc Failed (Visible but not solved)`;
+                 html += `\n[POSE] Calc Failed (Visible but not solved - Adjust lighting/angle)`;
              } else {
                  html += `\n[POSE] Calc Failed (Shoulders not visible)`;
              }
@@ -191,14 +191,56 @@ Body Z: ${(spine.z * 180 / Math.PI).toFixed(1)}°
     const raw = riggedData.raw || {};
     html += `\n[RAW] Face: ${raw.faceLandmarks ? 'OK' : 'NO'}, Pose: ${raw.poseLandmarks ? 'OK' : 'NO'}`;
     
+    // 硬件信息 (CPU/GPU)
+    // 注意：Web环境无法获取实时CPU/GPU使用率，仅能获取静态信息和JS内存
+    const cpuCores = navigator.hardwareConcurrency || '?';
+    const gpuName = getGPUModel();
+    
+    html += `\n[HW] CPU: ${cpuCores} Cores`;
+    html += `\n[HW] GPU: ${gpuName}`;
+
     if (window.performance && window.performance.memory) {
         const mem = window.performance.memory;
         const used = (mem.usedJSHeapSize / 1048576).toFixed(1);
         const total = (mem.totalJSHeapSize / 1048576).toFixed(1);
-        html += `\n[MEM] ${used} / ${total} MB`;
+        const limit = (mem.jsHeapSizeLimit / 1048576).toFixed(0);
+        html += `\n[MEM] JS Heap: ${used} / ${total} MB (Limit: ${limit} MB)`;
     }
 
     debugEl.innerText = html;
+}
+
+// 缓存 GPU 信息，避免重复创建 Context
+let _cachedGPUModel = null;
+function getGPUModel() {
+    if (_cachedGPUModel) return _cachedGPUModel;
+
+    try {
+        const canvas = document.createElement('canvas');
+        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        if (gl) {
+            const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+            if (debugInfo) {
+                _cachedGPUModel = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+            } else {
+                _cachedGPUModel = gl.getParameter(gl.RENDERER);
+            }
+            
+            // 简化名称，去除冗余信息
+            if (_cachedGPUModel) {
+                _cachedGPUModel = _cachedGPUModel.replace(/ANGLE \(/, '').replace(/\)/, '');
+                // 截断过长的显卡名称
+                if (_cachedGPUModel.length > 30) {
+                     _cachedGPUModel = _cachedGPUModel.substring(0, 27) + '...';
+                }
+            }
+        }
+    } catch (e) {
+        console.warn('GPU Info retrieval failed', e);
+    }
+
+    _cachedGPUModel = _cachedGPUModel || 'Unknown GPU';
+    return _cachedGPUModel;
 }
 
 async function handleZipUpload(event) {
