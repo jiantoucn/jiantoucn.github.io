@@ -33,14 +33,15 @@ window.CameraController = {
             }});
 
             // 配置：启用面部 refinement，禁用背景分割以提升性能
+            // 降低置信度门槛以提高召回率
             this.holistic.setOptions({
                 modelComplexity: 1,
                 smoothLandmarks: true,
                 enableSegmentation: false,
                 smoothSegmentation: false,
                 refineFaceLandmarks: true,
-                minDetectionConfidence: 0.5,
-                minTrackingConfidence: 0.5
+                minDetectionConfidence: 0.3, // 降低门槛
+                minTrackingConfidence: 0.3
             });
 
             this.holistic.onResults(this.handleResults.bind(this));
@@ -141,7 +142,7 @@ window.CameraController = {
                         poseRig = Kalidokit.Pose.solve(results.poseLandmarks, results.poseWorldLandmarks, {
                             runtime: 'mediapipe',
                             video: this.videoElement,
-                            enableLegs: true
+                            enableLegs: false // 禁用腿部解算以适应半身场景
                         });
                     }
                     
@@ -163,7 +164,6 @@ window.CameraController = {
                         }
                     });
                 }
-        }
         canvasCtx.restore();
     }
 };

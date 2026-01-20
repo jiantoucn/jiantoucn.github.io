@@ -50,7 +50,7 @@ function bindEvents() {
                 // 更新 UI 调试信息
                 updateDebugUI(riggedFace);
             });
-            statusText.innerText = "摄像头正在运行 (v1.21)";
+            statusText.innerText = "摄像头正在运行 (v1.23)";
             document.getElementById('btn-camera').disabled = true;
         } catch (err) {
             statusText.innerText = "摄像头启动失败: " + err.message;
@@ -124,7 +124,12 @@ Body Z (Roll):  ${(spine.z * 180 / Math.PI).toFixed(1)}°
 `;
         }
     } else {
-        html += `\n[POSE] Not Detected`;
+        // 根据原始数据判断原因
+        if (riggedData.raw && riggedData.raw.poseLandmarks) {
+             html += `\n[POSE] Calculation Failed (Try showing shoulders)`;
+        } else {
+             html += `\n[POSE] Not Detected (Move further back)`;
+        }
     }
 
     // 原始数据状态

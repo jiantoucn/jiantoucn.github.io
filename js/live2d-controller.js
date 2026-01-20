@@ -19,8 +19,14 @@ window.Live2DController = {
             backgroundColor: 0x202020
         });
 
-        // 缩放控制
+        // 交互控制 (缩放 + 拖动)
         const view = this.app.view;
+        let isDragging = false;
+        let dragStartX = 0;
+        let dragStartY = 0;
+        let modelStartX = 0;
+        let modelStartY = 0;
+
         // 滚轮缩放
         view.addEventListener('wheel', (e) => {
             if (!this.currentModel) return;
@@ -31,20 +37,58 @@ window.Live2DController = {
             this.currentModel.scale.set(newScale);
         }, { passive: false });
 
-        // 双指缩放
+        // 鼠标拖动
+        view.addEventListener('mousedown', (e) => {
+            if (!this.currentModel) return;
+            isDragging = true;
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
+            modelStartX = this.currentModel.x;
+            modelStartY = this.currentModel.y;
+        });
+        window.addEventListener('mousemove', (e) => {
+            if (isDragging && this.currentModel) {
+                const dx = e.clientX - dragStartX;
+                const dy = e.clientY - dragStartY;
+                this.currentModel.position.set(modelStartX + dx, modelStartY + dy);
+            }
+        });
+        window.addEventListener('mouseup', () => { isDragging = false; });
+        
+        // 触摸控制
         let initialDistance = 0;
         let initialScale = 1;
+        let touchMode = 'none'; // 'drag' or 'zoom'
+
         view.addEventListener('touchstart', (e) => {
-            if (e.touches.length === 2 && this.currentModel) {
+            if (!this.currentModel) return;
+            
+            if (e.touches.length === 1) {
+                // 单指拖动
+                touchMode = 'drag';
+                dragStartX = e.touches[0].clientX;
+                dragStartY = e.touches[0].clientY;
+                modelStartX = this.currentModel.x;
+                modelStartY = this.currentModel.y;
+            } else if (e.touches.length === 2) {
+                // 双指缩放
+                touchMode = 'zoom';
                 const dx = e.touches[0].clientX - e.touches[1].clientX;
                 const dy = e.touches[0].clientY - e.touches[1].clientY;
                 initialDistance = Math.sqrt(dx * dx + dy * dy);
                 initialScale = this.currentModel.scale.x;
             }
         });
+
         view.addEventListener('touchmove', (e) => {
-            if (e.touches.length === 2 && this.currentModel) {
-                e.preventDefault();
+            if (!this.currentModel) return;
+            e.preventDefault();
+
+            if (touchMode === 'drag' && e.touches.length === 1) {
+                const dx = e.touches[0].clientX - dragStartX;
+                const dy = e.touches[0].clientY - dragStartY;
+                this.currentModel.position.set(modelStartX + dx, modelStartY + dy);
+            } else if (touchMode === 'zoom' && e.touches.length === 2) {
                 const dx = e.touches[0].clientX - e.touches[1].clientX;
                 const dy = e.touches[0].clientY - e.touches[1].clientY;
                 const distance = Math.sqrt(dx * dx + dy * dy);
@@ -56,6 +100,19 @@ window.Live2DController = {
                 }
             }
         }, { passive: false });
+        
+        view.addEventListener('touchend', (e) => {
+            if (e.touches.length === 0) {
+                touchMode = 'none';
+            } else if (e.touches.length === 1) {
+                // 如果从双指变成单指，切换回拖动模式，重置起始点以防跳变
+                touchMode = 'drag';
+                dragStartX = e.touches[0].clientX;
+                dragStartY = e.touches[0].clientY;
+                modelStartX = this.currentModel.x;
+                modelStartY = this.currentModel.y;
+            }
+        });
         
         // 全局更新循环：确保面捕数据每帧都被应用
         this.app.ticker.add(() => {
