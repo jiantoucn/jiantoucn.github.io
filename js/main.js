@@ -274,8 +274,8 @@ Body Z: ${(spine.z * 180 / Math.PI).toFixed(1)}°
     if (riggedData.gesture) {
         const l = riggedData.gesture.left;
         const r = riggedData.gesture.right;
-        if (l !== null || r !== null) {
-            html += `\n[GESTURE] L: ${l !== null ? l : '-'} | R: ${r !== null ? r : '-'}`;
+        if (l != null || r != null) {
+            html += `\n[GESTURE] L: ${l != null ? l : '-'} | R: ${r != null ? r : '-'}`;
         }
     }
 

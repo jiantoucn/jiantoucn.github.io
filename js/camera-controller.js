@@ -79,93 +79,95 @@ window.CameraController = {
     },
 
     handleResults: function(results) {
-        // 计算 FPS
-        const now = performance.now();
-        this.frameCount++;
-        if (now - this.lastFpsTime >= 1000) {
-            this.fps = Math.round((this.frameCount * 1000) / (now - this.lastFpsTime));
-            this.frameCount = 0;
-            this.lastFpsTime = now;
-        }
+        try {
+            // 计算 FPS
+            const now = performance.now();
+            this.frameCount++;
+            if (now - this.lastFpsTime >= 1000) {
+                this.fps = Math.round((this.frameCount * 1000) / (now - this.lastFpsTime));
+                this.frameCount = 0;
+                this.lastFpsTime = now;
+            }
 
-        const { canvasCtx, canvasElement } = this;
-        canvasCtx.save();
-        canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-        canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
-        
-        // 1. 绘制 Pose
-        if (results.poseLandmarks && window.drawConnectors && this.drawConfig.showPose) {
-            drawConnectors(canvasCtx, results.poseLandmarks, POSE_CONNECTIONS, {color: '#00FF00', lineWidth: 2});
-            // drawLandmarks(canvasCtx, results.poseLandmarks, {color: '#FF0000', lineWidth: 1}); // 可选：绘制点
-        }
+            const { canvasCtx, canvasElement } = this;
+            if (!canvasCtx) return; // 安全检查
 
-        // 2. 绘制 Face
-        if (results.faceLandmarks && this.drawConfig.showFace) {
-            if (window.drawConnectors) {
-                // 绘制详细骨骼
-                drawConnectors(canvasCtx, results.faceLandmarks, FACEMESH_TESSELATION, {color: '#C0C0C070', lineWidth: 1});
-                drawConnectors(canvasCtx, results.faceLandmarks, FACEMESH_RIGHT_EYE, {color: '#FF3030', lineWidth: 2});
-                drawConnectors(canvasCtx, results.faceLandmarks, FACEMESH_RIGHT_EYEBROW, {color: '#FF3030', lineWidth: 2});
-                drawConnectors(canvasCtx, results.faceLandmarks, FACEMESH_LEFT_EYE, {color: '#30FF30', lineWidth: 2});
-                drawConnectors(canvasCtx, results.faceLandmarks, FACEMESH_LEFT_EYEBROW, {color: '#30FF30', lineWidth: 2});
-                drawConnectors(canvasCtx, results.faceLandmarks, FACEMESH_FACE_OVAL, {color: '#E0E0E0', lineWidth: 2});
-                drawConnectors(canvasCtx, results.faceLandmarks, FACEMESH_LIPS, {color: '#E0E0E0', lineWidth: 2});
+            canvasCtx.save();
+            try {
+                canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+                canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
                 
-                // 绘制虹膜
-                if (window.FACEMESH_RIGHT_IRIS) {
-                     drawConnectors(canvasCtx, results.faceLandmarks, FACEMESH_RIGHT_IRIS, {color: '#FF3030', lineWidth: 2});
-                     drawConnectors(canvasCtx, results.faceLandmarks, FACEMESH_LEFT_IRIS, {color: '#30FF30', lineWidth: 2});
+                // 1. 绘制 Pose
+                if (results.poseLandmarks && window.drawConnectors && this.drawConfig.showPose) {
+                    drawConnectors(canvasCtx, results.poseLandmarks, POSE_CONNECTIONS, {color: '#00FF00', lineWidth: 2});
                 }
-            }
-        }
 
-        // 3. 绘制 Hands (新增)
-        if (window.drawConnectors && window.HAND_CONNECTIONS && this.drawConfig.showHands) {
-            if (results.leftHandLandmarks) {
-                drawConnectors(canvasCtx, results.leftHandLandmarks, HAND_CONNECTIONS, {color: '#CC0000', lineWidth: 2});
-                drawLandmarks(canvasCtx, results.leftHandLandmarks, {color: '#00FF00', lineWidth: 1});
-            }
-            if (results.rightHandLandmarks) {
-                drawConnectors(canvasCtx, results.rightHandLandmarks, HAND_CONNECTIONS, {color: '#00CC00', lineWidth: 2});
-                drawLandmarks(canvasCtx, results.rightHandLandmarks, {color: '#FF0000', lineWidth: 1});
-            }
-        }
+                // 2. 绘制 Face
+                if (results.faceLandmarks && this.drawConfig.showFace) {
+                    if (window.drawConnectors) {
+                        drawConnectors(canvasCtx, results.faceLandmarks, FACEMESH_TESSELATION, {color: '#C0C0C070', lineWidth: 1});
+                        drawConnectors(canvasCtx, results.faceLandmarks, FACEMESH_RIGHT_EYE, {color: '#FF3030', lineWidth: 2});
+                        drawConnectors(canvasCtx, results.faceLandmarks, FACEMESH_RIGHT_EYEBROW, {color: '#FF3030', lineWidth: 2});
+                        drawConnectors(canvasCtx, results.faceLandmarks, FACEMESH_LEFT_EYE, {color: '#30FF30', lineWidth: 2});
+                        drawConnectors(canvasCtx, results.faceLandmarks, FACEMESH_LEFT_EYEBROW, {color: '#30FF30', lineWidth: 2});
+                        drawConnectors(canvasCtx, results.faceLandmarks, FACEMESH_FACE_OVAL, {color: '#E0E0E0', lineWidth: 2});
+                        drawConnectors(canvasCtx, results.faceLandmarks, FACEMESH_LIPS, {color: '#E0E0E0', lineWidth: 2});
+                        if (window.FACEMESH_RIGHT_IRIS) {
+                             drawConnectors(canvasCtx, results.faceLandmarks, FACEMESH_RIGHT_IRIS, {color: '#FF3030', lineWidth: 2});
+                             drawConnectors(canvasCtx, results.faceLandmarks, FACEMESH_LEFT_IRIS, {color: '#30FF30', lineWidth: 2});
+                        }
+                    }
+                }
 
-        // 4. 使用 Kalidokit 解算
-        let faceRig = null;
+                // 3. 绘制 Hands
+                if (window.drawConnectors && window.HAND_CONNECTIONS && this.drawConfig.showHands) {
+                    if (results.leftHandLandmarks) {
+                        drawConnectors(canvasCtx, results.leftHandLandmarks, HAND_CONNECTIONS, {color: '#CC0000', lineWidth: 2});
+                        drawLandmarks(canvasCtx, results.leftHandLandmarks, {color: '#00FF00', lineWidth: 1});
+                    }
+                    if (results.rightHandLandmarks) {
+                        drawConnectors(canvasCtx, results.rightHandLandmarks, HAND_CONNECTIONS, {color: '#00CC00', lineWidth: 2});
+                        drawLandmarks(canvasCtx, results.rightHandLandmarks, {color: '#FF0000', lineWidth: 1});
+                    }
+                }
+
+                // 4. 使用 Kalidokit 解算
+                let faceRig = null;
                 let poseRig = null;
                 let leftHandRig = null;
                 let rightHandRig = null;
+                let leftGesture = null;
+                let rightGesture = null;
 
                 if (window.Kalidokit) {
                     // 面部解算
                     if (results.faceLandmarks) {
-                        faceRig = Kalidokit.Face.solve(results.faceLandmarks, {
-                            runtime: 'mediapipe',
-                            video: this.videoElement,
-                            smoothBlink: true,
-                            blinkSettings: [0.25, 0.75]
-                        });
+                        try {
+                            faceRig = Kalidokit.Face.solve(results.faceLandmarks, {
+                                runtime: 'mediapipe',
+                                video: this.videoElement,
+                                smoothBlink: true,
+                                blinkSettings: [0.25, 0.75]
+                            });
+                        } catch(e) { console.warn("Face solve error", e); }
                     }
 
                     // 身体解算
                     if (results.poseLandmarks && results.poseWorldLandmarks) {
-                        poseRig = Kalidokit.Pose.solve(results.poseLandmarks, results.poseWorldLandmarks, {
-                            runtime: 'mediapipe',
-                            video: this.videoElement,
-                            enableLegs: false // 禁用腿部解算以适应半身场景
-                        });
+                        try {
+                            poseRig = Kalidokit.Pose.solve(results.poseLandmarks, results.poseWorldLandmarks, {
+                                runtime: 'mediapipe',
+                                video: this.videoElement,
+                                enableLegs: false
+                            });
+                        } catch(e) { console.warn("Pose solve error", e); }
                     }
                     
-                    // 手部解算 (预留)
-                    // if (results.leftHandLandmarks) leftHandRig = Kalidokit.Hand.solve(results.leftHandLandmarks, "Left");
-                    // if (results.rightHandLandmarks) rightHandRig = Kalidokit.Hand.solve(results.rightHandLandmarks, "Right");
-                    
                     // 手部数字识别
-                    let leftGesture = null;
-                    let rightGesture = null;
-                    if (results.leftHandLandmarks) leftGesture = this.detectNumberGesture(results.leftHandLandmarks);
-                    if (results.rightHandLandmarks) rightGesture = this.detectNumberGesture(results.rightHandLandmarks);
+                    try {
+                        if (results.leftHandLandmarks) leftGesture = this.detectNumberGesture(results.leftHandLandmarks);
+                        if (results.rightHandLandmarks) rightGesture = this.detectNumberGesture(results.rightHandLandmarks);
+                    } catch(e) { console.warn("Gesture detect error", e); }
                 }
 
                 if (this.onResultsCallback) {
@@ -175,15 +177,21 @@ window.CameraController = {
                         leftHand: leftHandRig,
                         rightHand: rightHandRig,
                         gesture: { left: leftGesture, right: rightGesture },
-                        fps: this.fps, // 传递 FPS
-                        // 传递原始结果用于调试
+                        fps: this.fps,
                         raw: {
                             faceLandmarks: results.faceLandmarks,
                             poseLandmarks: results.poseLandmarks
                         }
                     });
                 }
-        canvasCtx.restore();
+            } finally {
+                canvasCtx.restore();
+            }
+        } catch (err) {
+            console.error("Critical error in handleResults:", err);
+            // 尝试恢复上下文，防止下一次绘制失败
+            if (this.canvasCtx) this.canvasCtx.restore(); 
+        }
     },
 
     // 简单的手势数字识别 (0-5, 6, 8)
