@@ -18,6 +18,19 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function bindEvents() {
+    // 预设选择改变
+    const presetSelect = document.getElementById('preset-select');
+    if (presetSelect) {
+        presetSelect.addEventListener('change', (e) => {
+            const url = e.target.value;
+            if (url) {
+                document.getElementById('model-url').value = url;
+                // 自动触发加载
+                Live2DController.loadModel(url, 'status-text');
+            }
+        });
+    }
+
     // 网络加载按钮
     document.getElementById('btn-load').addEventListener('click', () => {
         const url = document.getElementById('model-url').value;
