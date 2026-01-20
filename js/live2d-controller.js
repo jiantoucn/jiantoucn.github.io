@@ -2,6 +2,7 @@
 window.Live2DController = {
     app: null,
     currentModel: null,
+    lastRiggedFace: null,
 
     init: function(canvasId) {
         const { Application, Live2DModel } = PIXI;
@@ -41,10 +42,25 @@ window.Live2DController = {
             console.log("Starting model load...");
             const model = await Live2DModel.from(source);
             
+            // 禁用自动空闲动画，防止模型自己乱动
+            if (model.internalModel.motionManager) {
+                model.internalModel.motionManager.idleMotionPaused = true;
+            }
+            
+            // 禁用默认的鼠标跟随，避免冲突
+            model.autoInteract = false;
+
+            // 关键：在模型更新循环中应用我们的面捕数据
+            model.on('update', () => {
+                if (this.lastRiggedFace) {
+                    this.applyFaceData(model, this.lastRiggedFace);
+                }
+            });
+            
             this.currentModel = model;
             this.app.stage.addChild(model);
 
-            this.resizeModel(); // 使用独立的 resize 方法
+            this.resizeModel(); 
             
             model.visible = true;
             model.alpha = 1;
@@ -80,28 +96,24 @@ window.Live2DController = {
     },
 
     update: function(riggedFace) {
-        if (!this.currentModel || !this.currentModel.internalModel) return;
+        this.lastRiggedFace = riggedFace;
+    },
 
-        const core = this.currentModel.internalModel.coreModel;
+    applyFaceData: function(model, riggedFace) {
+        if (!model || !model.internalModel) return;
+
+        const core = model.internalModel.coreModel;
         const head = riggedFace.head;
         const eye = riggedFace.eye;
         const mouth = riggedFace.mouth;
-
-        // 调试：每 60 帧打印一次头部角度，证明数据进来了
-        if (!window.debugCounter) window.debugCounter = 0;
-        window.debugCounter++;
-        if (window.debugCounter % 60 === 0) {
-            console.log(`Live2D Update - Yaw: ${head.degrees.y.toFixed(2)}, Pitch: ${head.degrees.x.toFixed(2)}`);
-        }
 
         // 兼容 Cubism 4 (setParameterValueById) 和 Cubism 2 (setParamFloat)
         const setParam = (id, value) => {
             if (core.setParameterValueById) {
                 core.setParameterValueById(id, value);
             } else if (core.setParamFloat) {
-                // Cubism 2 ID 映射 (转大写并添加 PARAM_)
+                // Cubism 2 ID 映射
                 let v2Id = id;
-                // 常见映射表
                 const map = {
                     'ParamAngleX': 'PARAM_ANGLE_X',
                     'ParamAngleY': 'PARAM_ANGLE_Y',
@@ -118,22 +130,16 @@ window.Live2DController = {
                 };
                 if (map[id]) v2Id = map[id];
                 
-                // 尝试查找索引
                 let index = -1;
-                if (core.getParamIndex) {
-                    index = core.getParamIndex(v2Id);
-                }
+                if (core.getParamIndex) index = core.getParamIndex(v2Id);
                 
-                if (index !== -1) {
-                    core.setParamFloat(index, value);
-                } else {
-                    // 尝试直接用 id (有些非标模型)
-                    try { core.setParamFloat(v2Id, value); } catch(e) {}
-                }
+                if (index !== -1) core.setParamFloat(index, value);
+                else try { core.setParamFloat(v2Id, value); } catch(e) {}
             }
         };
 
         // 设置参数
+        // 注意：Live2D 参数通常需要每帧设置，因为 internalModel 会在更新开始时重置它们
         setParam('ParamAngleX', head.degrees.y); 
         setParam('ParamAngleY', head.degrees.x);
         setParam('ParamAngleZ', head.degrees.z);
@@ -146,7 +152,7 @@ window.Live2DController = {
         }
         
         setParam('ParamMouthOpenY', mouth.y);
-        setParam('ParamMouthForm', 0.3 + mouth.x); // 稍微修正嘴型
+        setParam('ParamMouthForm', mouth.x); 
         setParam('ParamBodyAngleX', head.degrees.y * 0.5);
         setParam('ParamBodyAngleY', head.degrees.x * 0.5);
         setParam('ParamBodyAngleZ', head.degrees.z * 0.5);
