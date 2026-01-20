@@ -404,10 +404,24 @@ window.Live2DController = {
         };
 
         const core = model.internalModel.coreModel;
-        const riggedFace = data.face;
+        let riggedFace = data.face;
         const riggedPose = data.pose;
         
-        // 如果连面部数据都没有，就无法驱动大部分参数
+        if (!riggedFace && riggedPose && riggedPose.Spine) {
+            const spine = riggedPose.Spine;
+            riggedFace = {
+                head: {
+                    degrees: {
+                        x: (spine.x || 0) * 180 / Math.PI,
+                        y: (spine.y || 0) * 180 / Math.PI,
+                        z: (spine.z || 0) * 180 / Math.PI
+                    }
+                },
+                eye: { l: 1, r: 1 },
+                mouth: { x: 0, y: 0 }
+            };
+        }
+
         if (!riggedFace) return;
 
         const head = riggedFace.head;

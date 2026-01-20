@@ -136,7 +136,7 @@ function bindEvents() {
                     if (debugEl) debugEl.innerText = `数据处理错误: ${err.message}`;
                 }
             });
-            statusText.innerText = "摄像头正在运行 (v1.33.1)";
+            statusText.innerText = "摄像头正在运行 (v1.33.2)";
             document.getElementById('btn-camera').disabled = true;
             
             // 显示监控面板
@@ -207,6 +207,13 @@ function bindEvents() {
     if (monitorHeader && monitorPanel) {
         monitorHeader.addEventListener('click', () => {
             monitorPanel.classList.toggle('collapsed');
+        });
+    }
+
+    const senderBtn = document.getElementById('btn-sender');
+    if (senderBtn) {
+        senderBtn.addEventListener('click', () => {
+            window.open('sender.html', '_blank');
         });
     }
 }
