@@ -1,4 +1,4 @@
-const CACHE_NAME = 'live2d-tracker-v1.6';
+const CACHE_NAME = 'live2d-tracker-v1.7';
 const ASSETS = [
   './',
   './index.html',
@@ -7,6 +7,7 @@ const ASSETS = [
   './js/camera-controller.js',
   './js/main.js',
   'https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js',
+  'https://cdn.jsdelivr.net/gh/dylanNew/live2d/webgl/Live2D/lib/live2d.min.js',
   'https://cdn.jsdelivr.net/npm/pixi.js@6.5.1/dist/browser/pixi.min.js',
   'https://cdn.jsdelivr.net/npm/pixi-live2d-display/dist/index.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',

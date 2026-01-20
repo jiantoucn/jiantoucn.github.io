@@ -92,6 +92,8 @@
     <!-- 核心依赖 -->
     <!-- Cubism Core (必须在 pixi-live2d-display 之前加载) -->
     <script src="https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js"></script>
+    <!-- Cubism 2 Core -->
+    <script src="https://cdn.jsdelivr.net/gh/dylanNew/live2d/webgl/Live2D/lib/live2d.min.js"></script>
     
     <!-- PixiJS -->
     <script src="https://cdn.jsdelivr.net/npm/pixi.js@6.5.1/dist/browser/pixi.min.js"></script>
@@ -115,7 +117,7 @@
 <body>
 
     <div id="ui-layer">
-        <h3>Live2D 面部捕捉 <span style="font-size: 0.6em; color: #888; background: #333; padding: 2px 4px; border-radius: 4px;">v1.6</span></h3>
+        <h3>Live2D 面部捕捉 <span style="font-size: 0.6em; color: #888; background: #333; padding: 2px 4px; border-radius: 4px;">v1.7</span></h3>
         
         <!-- 本地上传区域 -->
         <div style="margin-bottom: 15px; border-bottom: 1px solid #444; padding-bottom: 15px;">
@@ -129,9 +131,13 @@
 
         <!-- 网络链接区域 -->
         <div style="margin-bottom: 10px;">
-            <label style="display:block; margin-bottom:5px; font-weight:bold;">方式二：网络链接</label>
-            <input type="text" id="model-url" placeholder="输入 .model3.json 链接" value="https://cdn.jsdelivr.net/gh/guansss/pixi-live2d-display/test/assets/haru/haru_greeter_t03.model3.json">
-            <button id="btn-load">🌐 加载网络模型</button>
+            <label style="display:block; margin-bottom:5px; font-weight:bold;">方式二：网络链接 / 预设</label>
+            <select id="preset-select" style="width:100%; padding:5px; margin-bottom:5px; background:#333; color:white; border:1px solid #555;">
+                <option value="miku/runtime/miku.model3.json" selected>Miku (本地 - 需要服务运行)</option>
+                <option value="https://cdn.jsdelivr.net/gh/guansss/pixi-live2d-display/test/assets/haru/haru_greeter_t03.model3.json">Haru (在线)</option>
+            </select>
+            <input type="text" id="model-url" placeholder="输入 .model3.json 链接" value="miku/runtime/miku.model3.json">
+            <button id="btn-load">🌐 加载模型</button>
         </div>
 
         <hr style="border-color: #444;">
