@@ -50,7 +50,7 @@ function bindEvents() {
                 // 更新 UI 调试信息
                 updateDebugUI(riggedFace);
             });
-            statusText.innerText = "摄像头正在运行 (v1.19)";
+            statusText.innerText = "摄像头正在运行 (v1.20)";
             document.getElementById('btn-camera').disabled = true;
         } catch (err) {
             statusText.innerText = "摄像头启动失败: " + err.message;
@@ -76,7 +76,7 @@ function bindEvents() {
 }
 
 // 调试 UI 更新函数
-function updateDebugUI(riggedFace) {
+function updateDebugUI(riggedData) {
     let debugEl = document.getElementById('debug-info');
     if (!debugEl) {
         // 创建调试面板
@@ -89,16 +89,49 @@ function updateDebugUI(riggedFace) {
         debugEl.style.fontFamily = 'monospace';
         debugEl.style.background = 'rgba(0,0,0,0.5)';
         debugEl.style.padding = '5px';
+        debugEl.style.whiteSpace = 'pre'; // 保持换行
         uiLayer.appendChild(debugEl);
     }
     
-    const head = riggedFace.head;
-    debugEl.innerHTML = `
-        Pitch: ${head.degrees.x.toFixed(1)}°<br>
-        Yaw:   ${head.degrees.y.toFixed(1)}°<br>
-        Roll:  ${head.degrees.z.toFixed(1)}°<br>
-        Mouth: ${riggedFace.mouth.y.toFixed(2)}
-    `;
+    const face = riggedData.face;
+    const pose = riggedData.pose;
+    
+    let html = '';
+
+    if (face) {
+        const head = face.head;
+        html += `[FACE]
+Pitch: ${head.degrees.x.toFixed(1)}°
+Yaw:   ${head.degrees.y.toFixed(1)}°
+Roll:  ${head.degrees.z.toFixed(1)}°
+Mouth: ${face.mouth.y.toFixed(2)} (${face.mouth.shape.A.toFixed(2)}, ${face.mouth.shape.I.toFixed(2)})
+Eye L: ${face.eye.l.toFixed(2)}
+Eye R: ${face.eye.r.toFixed(2)}
+`;
+    } else {
+        html += `[FACE] Not Detected\n`;
+    }
+
+    if (pose) {
+        // 简单的脊柱数据展示
+        const spine = pose.Spine;
+        if (spine) {
+            html += `
+[POSE]
+Body X (Twist): ${(spine.y * 180 / Math.PI).toFixed(1)}°
+Body Y (Lean):  ${(spine.x * 180 / Math.PI).toFixed(1)}°
+Body Z (Roll):  ${(spine.z * 180 / Math.PI).toFixed(1)}°
+`;
+        }
+    } else {
+        html += `\n[POSE] Not Detected`;
+    }
+
+    // 原始数据状态
+    const raw = riggedData.raw || {};
+    html += `\n[RAW] Face: ${raw.faceLandmarks ? 'OK' : 'NO'}, Pose: ${raw.poseLandmarks ? 'OK' : 'NO'}`;
+
+    debugEl.innerText = html;
 }
 
 async function handleZipUpload(event) {

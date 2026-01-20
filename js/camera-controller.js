@@ -91,41 +91,50 @@ window.CameraController = {
                 }
             }
 
-            // 3. 使用 Kalidokit 解算
-            if (window.Kalidokit) {
-                // 面部解算
-                const faceRig = Kalidokit.Face.solve(results.faceLandmarks, {
-                    runtime: 'mediapipe',
-                    video: this.videoElement,
-                    smoothBlink: true,
-                    blinkSettings: [0.25, 0.75]
-                });
-
-                // 身体解算
+                // 3. 使用 Kalidokit 解算
+                let faceRig = null;
                 let poseRig = null;
-                if (results.poseLandmarks && results.poseWorldLandmarks) {
-                    poseRig = Kalidokit.Pose.solve(results.poseLandmarks, results.poseWorldLandmarks, {
-                        runtime: 'mediapipe',
-                        video: this.videoElement,
-                        enableLegs: true // 尝试启用腿部解算（虽然 Live2D 通常用不到）
-                    });
-                }
-                
-                // 手部解算 (预留)
                 let leftHandRig = null;
                 let rightHandRig = null;
-                // if (results.leftHandLandmarks) leftHandRig = Kalidokit.Hand.solve(results.leftHandLandmarks, "Left");
-                // if (results.rightHandLandmarks) rightHandRig = Kalidokit.Hand.solve(results.rightHandLandmarks, "Right");
+
+                if (window.Kalidokit) {
+                    // 面部解算
+                    if (results.faceLandmarks) {
+                        faceRig = Kalidokit.Face.solve(results.faceLandmarks, {
+                            runtime: 'mediapipe',
+                            video: this.videoElement,
+                            smoothBlink: true,
+                            blinkSettings: [0.25, 0.75]
+                        });
+                    }
+
+                    // 身体解算
+                    if (results.poseLandmarks && results.poseWorldLandmarks) {
+                        poseRig = Kalidokit.Pose.solve(results.poseLandmarks, results.poseWorldLandmarks, {
+                            runtime: 'mediapipe',
+                            video: this.videoElement,
+                            enableLegs: true
+                        });
+                    }
+                    
+                    // 手部解算 (预留)
+                    // if (results.leftHandLandmarks) leftHandRig = Kalidokit.Hand.solve(results.leftHandLandmarks, "Left");
+                    // if (results.rightHandLandmarks) rightHandRig = Kalidokit.Hand.solve(results.rightHandLandmarks, "Right");
+                }
 
                 if (this.onResultsCallback) {
                     this.onResultsCallback({
                         face: faceRig,
                         pose: poseRig,
                         leftHand: leftHandRig,
-                        rightHand: rightHandRig
+                        rightHand: rightHandRig,
+                        // 传递原始结果用于调试
+                        raw: {
+                            faceLandmarks: results.faceLandmarks,
+                            poseLandmarks: results.poseLandmarks
+                        }
                     });
                 }
-            }
         }
         canvasCtx.restore();
     }

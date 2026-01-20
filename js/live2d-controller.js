@@ -269,21 +269,25 @@ window.Live2DController = {
     },
 
     update: function(data) {
-        if (data && data.face) {
+        if (!data) return;
+        
+        // 确保 data 结构一致
+        if (data.face || data.pose) {
             this.lastRiggedData = data;
-        } else if (data && data.head) {
-             // 兼容旧接口（如果直接传了 face rig）
+        } else if (data.head) {
+             // 兼容旧接口（如果直接传了 face rig 对象）
              this.lastRiggedData = { face: data, pose: null };
         }
     },
 
     applyRiggedData: function(model, data) {
-        if (!model || !model.internalModel) return;
+        if (!model || !model.internalModel || !data) return;
 
         const core = model.internalModel.coreModel;
         const riggedFace = data.face;
         const riggedPose = data.pose;
         
+        // 如果连面部数据都没有，就无法驱动大部分参数
         if (!riggedFace) return;
 
         const head = riggedFace.head;
