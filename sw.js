@@ -1,4 +1,4 @@
-const CACHE_NAME = 'live2d-tracker-v1.17';
+const CACHE_NAME = 'live2d-tracker-v1.19';
 const ASSETS = [
   './',
   './index.html',
@@ -20,6 +20,16 @@ const ASSETS = [
   './models/小海豹试用版/试用版(水印不可去除).cdi3.json',
   './models/小海豹试用版/试用版(水印不可去除).8192/texture_00.png',
   './models/小海豹试用版/试用版(水印不可去除).8192/texture_01.png',
+  // 艾玛模型文件
+  './models/艾玛/艾玛.model3.json',
+  './models/艾玛/艾玛.moc3',
+  './models/艾玛/艾玛.physics3.json',
+  './models/艾玛/艾玛.cdi3.json',
+  './models/艾玛/艾玛.8192/texture_00.png',
+  './models/艾玛/liulei.exp3.json',
+  './models/艾玛/monvhua.exp3.json',
+  './models/艾玛/taishou.exp3.json',
+  './models/艾玛/Scene1.motion3.json',
   // 外部依赖
   'https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js',
   'https://cdn.jsdelivr.net/gh/dylanNew/live2d/webgl/Live2D/lib/live2d.min.js',
@@ -28,7 +38,7 @@ const ASSETS = [
   'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',
   'https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js',
   'https://cdn.jsdelivr.net/npm/kalidokit@1.1.5/dist/kalidokit.umd.js',
-  'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js',
+  'https://cdn.jsdelivr.net/npm/@mediapipe/holistic/holistic.js',
   'https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js'
 ];
 

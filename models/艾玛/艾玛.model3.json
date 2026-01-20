@@ -1,0 +1,41 @@
+{
+	"Version": 3,
+	"FileReferences": {
+		"Moc": "艾玛.moc3",
+		"Textures": [
+			"艾玛.8192/texture_00.png"
+		],
+		"Physics": "艾玛.physics3.json",
+		"DisplayInfo": "艾玛.cdi3.json",
+		"Expressions": [
+			{
+				"Name": "taishou",
+				"File": "taishou.exp3.json"
+			},
+			{
+				"Name": "liulei",
+				"File": "liulei.exp3.json"
+			},
+			{
+				"Name": "monvhua",
+				"File": "monvhua.exp3.json"
+			}
+		]
+	},
+	"Groups": [
+		{
+			"Target": "Parameter",
+			"Name": "LipSync",
+			"Ids": []
+		},
+		{
+			"Target": "Parameter",
+			"Name": "EyeBlink",
+			"Ids": [
+				"ParamEyeLOpen",
+				"ParamEyeROpen"
+			]
+		}
+	],
+	"HitAreas": []
+}
