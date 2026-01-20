@@ -116,6 +116,11 @@
         const { Live2DModel } = PIXI.live2d || {};
         const { Face, Vector } = Kalidokit || {};
 
+        // 注册 Ticker (关键: 解决模型不显示/不动的问题)
+        if (Live2DModel) {
+            Live2DModel.registerTicker(PIXI.Ticker);
+        }
+
         // 全局变量
         let currentModel = null;
         let faceMesh = null;
@@ -149,10 +154,19 @@
                 currentModel = model;
                 app.stage.addChild(model);
 
-                // 自动缩放和定位
-                const scaleX = (innerWidth * 0.4) / model.width;
-                const scaleY = (innerHeight * 0.8) / model.height;
-                const scale = Math.min(scaleX, scaleY);
+                // 自动缩放和定位 (增加安全检查)
+                const modelWidth = model.width || 800; // 防止为 0
+                const modelHeight = model.height || 800;
+                
+                let scaleX = (innerWidth * 0.4) / modelWidth;
+                let scaleY = (innerHeight * 0.8) / modelHeight;
+                let scale = Math.min(scaleX, scaleY);
+                
+                // 防止缩放异常
+                if (!Number.isFinite(scale) || scale <= 0) {
+                    scale = 0.25;
+                    console.warn("模型尺寸异常，使用默认缩放 0.25");
+                }
                 
                 model.scale.set(scale);
                 model.anchor.set(0.5, 0.5);
