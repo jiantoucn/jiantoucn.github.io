@@ -1,4 +1,4 @@
-const CACHE_NAME = 'live2d-tracker-v1.12';
+const CACHE_NAME = 'live2d-tracker-v1.13';
 const ASSETS = [
   './',
   './index.html',
@@ -6,6 +6,14 @@ const ASSETS = [
   './js/live2d-controller.js',
   './js/camera-controller.js',
   './js/main.js',
+  // 默认模型文件 (Kei Vowels Pro)
+  './models/kei_en/kei_vowels_pro/runtime/kei_vowels_pro.model3.json',
+  './models/kei_en/kei_vowels_pro/runtime/kei_vowels_pro.moc3',
+  './models/kei_en/kei_vowels_pro/runtime/kei_vowels_pro.physics3.json',
+  './models/kei_en/kei_vowels_pro/runtime/kei_vowels_pro.cdi3.json',
+  './models/kei_en/kei_vowels_pro/runtime/kei_vowels_pro.motionsync3.json',
+  './models/kei_en/kei_vowels_pro/runtime/kei_vowels_pro.2048/texture_00.png',
+  // 外部依赖
   'https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js',
   'https://cdn.jsdelivr.net/gh/dylanNew/live2d/webgl/Live2D/lib/live2d.min.js',
   'https://cdn.jsdelivr.net/npm/pixi.js@6.5.1/dist/browser/pixi.min.js',

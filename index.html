@@ -6,6 +6,12 @@
     <title>Live2D 面部捕捉 Web 演示</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#007bff">
+    <link rel="preconnect" href="https://cubism.live2d.com">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <link rel="preload" href="models/kei_en/kei_vowels_pro/runtime/kei_vowels_pro.model3.json" as="fetch" crossorigin="anonymous">
+    <link rel="preload" href="models/kei_en/kei_vowels_pro/runtime/kei_vowels_pro.moc3" as="fetch" crossorigin="anonymous">
+    <link rel="preload" href="models/kei_en/kei_vowels_pro/runtime/kei_vowels_pro.2048/texture_00.png" as="image">
     <style>
         body { margin: 0; overflow: hidden; background-color: #202020; font-family: sans-serif; }
         #canvas { width: 100vw; height: 100vh; display: block; }
@@ -91,46 +97,45 @@
 
     <!-- 核心依赖 -->
     <!-- Cubism Core (必须在 pixi-live2d-display 之前加载) -->
-    <script src="https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js"></script>
+    <script defer src="https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js"></script>
     <!-- Cubism 2 Core -->
-    <script src="https://cdn.jsdelivr.net/gh/dylanNew/live2d/webgl/Live2D/lib/live2d.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/gh/dylanNew/live2d/webgl/Live2D/lib/live2d.min.js"></script>
     
     <!-- PixiJS -->
-    <script src="https://cdn.jsdelivr.net/npm/pixi.js@6.5.1/dist/browser/pixi.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/pixi.js@6.5.1/dist/browser/pixi.min.js"></script>
     
     <!-- Pixi-Live2D-Display (使用最新版) -->
-    <script src="https://cdn.jsdelivr.net/npm/pixi-live2d-display/dist/index.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/pixi-live2d-display/dist/index.min.js"></script>
     
     <!-- JSZip (用于解压模型压缩包) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     
     <!-- MediaPipe Drawing Utils (用于绘制骨骼) -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
 
     <!-- Kalidokit (面部解算) -->
-    <script src="https://cdn.jsdelivr.net/npm/kalidokit@1.1.5/dist/kalidokit.umd.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/kalidokit@1.1.5/dist/kalidokit.umd.js"></script>
     
     <!-- MediaPipe Face Mesh -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
 </head>
 <body>
 
     <div id="ui-layer">
-        <h3>Live2D 面部捕捉 <span style="font-size: 0.6em; color: #888; background: #333; padding: 2px 4px; border-radius: 4px;">v1.12</span></h3>
+        <h3>Live2D 面部捕捉 <span style="font-size: 0.6em; color: #888; background: #333; padding: 2px 4px; border-radius: 4px;">v1.13</span></h3>
         
         <!-- 网络链接区域 -->
         <div style="margin-bottom: 10px;">
             <label style="display:block; margin-bottom:5px; font-weight:bold;">选择模型 / 输入链接</label>
             <select id="preset-select" style="width:100%; padding:5px; margin-bottom:5px; background:#333; color:white; border:1px solid #555;">
-                <option value="models/miku/runtime/miku.model3.json" selected>Miku (本地)</option>
+                <option value="models/miku/runtime/miku.model3.json">Miku (本地)</option>
                 <option value="models/hiyori_free_zh/runtime/hiyori_free_t08.model3.json">Hiyori (本地)</option>
                 <option value="models/mark_free_zh/runtime/mark_free_t04.model3.json">Mark (本地)</option>
                 <option value="models/kei_en/kei_basic_free/runtime/kei_basic_free.model3.json">Kei Basic (本地)</option>
-                <option value="models/kei_en/kei_vowels_pro/runtime/kei_vowels_pro.model3.json">Kei Vowels (本地)</option>
-                <option value="https://cdn.jsdelivr.net/gh/guansss/pixi-live2d-display/test/assets/haru/haru_greeter_t03.model3.json">Haru (在线)</option>
+                <option value="models/kei_en/kei_vowels_pro/runtime/kei_vowels_pro.model3.json" selected>Kei Vowels (本地)</option>
             </select>
-            <input type="text" id="model-url" placeholder="输入 .model3.json 链接" value="models/miku/runtime/miku.model3.json">
+            <input type="text" id="model-url" placeholder="输入 .model3.json 链接" value="models/kei_en/kei_vowels_pro/runtime/kei_vowels_pro.model3.json">
             <button id="btn-load">🌐 加载模型</button>
         </div>
 
