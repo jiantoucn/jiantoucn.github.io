@@ -26,7 +26,15 @@ function initPeerJS() {
     
     // 初始化 Peer
     const peer = new Peer(randomId, {
-        debug: 1
+        debug: 1,
+        config: {
+            'iceServers': [
+                { url: 'stun:stun.l.google.com:19302' },
+                { url: 'stun:stun1.l.google.com:19302' },
+                { url: 'stun:stun2.l.google.com:19302' },
+                { url: 'stun:stun3.l.google.com:19302' }
+            ]
+        }
     });
     
     const idDisplay = document.getElementById('peer-id-display');
@@ -132,7 +140,7 @@ function bindEvents() {
                 // 更新 UI 调试信息
                 updateDebugUI(riggedFace);
             });
-            statusText.innerText = "摄像头正在运行 (v1.27.1)";
+            statusText.innerText = "摄像头正在运行 (v1.30)";
             document.getElementById('btn-camera').disabled = true;
             
             // 显示监控面板

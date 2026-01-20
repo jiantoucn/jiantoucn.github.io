@@ -482,15 +482,15 @@ window.Live2DController = {
             return (val - 0.2) / 0.8;
         };
 
-        this.lastEyeL = this.lerp(this.lastEyeL, clampEye(eye.l), 0.5);
-        this.lastEyeR = this.lerp(this.lastEyeR, clampEye(eye.r), 0.5);
+        this.lastEyeL = lerp(this.lastEyeL, clampEye(eye.l), 0.5);
+        this.lastEyeR = lerp(this.lastEyeR, clampEye(eye.r), 0.5);
 
         setParam('ParamEyeLOpen', this.lastEyeL);
         setParam('ParamEyeROpen', this.lastEyeR);
         
         if (riggedFace.pupil) {
-            this.lastPupilX = this.lerp(this.lastPupilX, riggedFace.pupil.x, 0.5);
-            this.lastPupilY = this.lerp(this.lastPupilY, riggedFace.pupil.y, 0.5);
+            this.lastPupilX = lerp(this.lastPupilX, riggedFace.pupil.x, 0.5);
+            this.lastPupilY = lerp(this.lastPupilY, riggedFace.pupil.y, 0.5);
             // 放大眼球移动效果，使其更明显
             setParam('ParamEyeBallX', this.lastPupilX * 2.0);
             setParam('ParamEyeBallY', this.lastPupilY * 2.0);
