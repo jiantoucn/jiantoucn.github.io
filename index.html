@@ -113,7 +113,7 @@
 <body>
 
     <div id="ui-layer">
-        <h3>Live2D 面部捕捉 <span style="font-size: 0.6em; color: #888; background: #333; padding: 2px 4px; border-radius: 4px;">v1.1</span></h3>
+        <h3>Live2D 面部捕捉 <span style="font-size: 0.6em; color: #888; background: #333; padding: 2px 4px; border-radius: 4px;">v1.2</span></h3>
         
         <!-- 本地上传区域 -->
         <div style="margin-bottom: 15px; border-bottom: 1px solid #444; padding-bottom: 15px;">
@@ -135,6 +135,7 @@
         <hr style="border-color: #444;">
 
         <button id="btn-camera">📷 开启摄像头</button>
+        <button id="btn-refresh" style="background: #6c757d; margin-top: 5px;">🔄 强制刷新缓存</button>
         <div class="status" id="status-text">准备就绪</div>
         
         <div class="video-container" id="video-container">
@@ -444,6 +445,19 @@
 
         document.getElementById('btn-camera').addEventListener('click', () => {
             initCamera();
+        });
+
+        document.getElementById('btn-refresh').addEventListener('click', () => {
+            // 清除可能存在的 Service Worker (如果未来添加了)
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(registrations => {
+                    for (let registration of registrations) {
+                        registration.unregister();
+                    }
+                });
+            }
+            // 强制重新加载页面
+            window.location.reload(true);
         });
 
         // 默认加载一次模型
