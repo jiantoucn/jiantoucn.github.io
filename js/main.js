@@ -50,8 +50,13 @@ function bindEvents() {
                 // 更新 UI 调试信息
                 updateDebugUI(riggedFace);
             });
-            statusText.innerText = "摄像头正在运行 (v1.25)";
+            statusText.innerText = "摄像头正在运行 (v1.26)";
             document.getElementById('btn-camera').disabled = true;
+            
+            // 显示监控面板
+            const monitorPanel = document.getElementById('monitor-panel');
+            if (monitorPanel) monitorPanel.style.display = 'flex';
+            
         } catch (err) {
             statusText.innerText = "摄像头启动失败: " + err.message;
         }
@@ -109,25 +114,28 @@ function bindEvents() {
             videoContainer.classList.remove('expanded');
         });
     }
+
+    // 监控面板折叠
+    const monitorHeader = document.getElementById('monitor-header');
+    const monitorPanel = document.getElementById('monitor-panel');
+    if (monitorHeader && monitorPanel) {
+        monitorHeader.addEventListener('click', () => {
+            monitorPanel.classList.toggle('collapsed');
+        });
+    }
 }
 
 // 调试 UI 更新函数
 function updateDebugUI(riggedData) {
-    let debugEl = document.getElementById('debug-info');
-    if (!debugEl) {
-        // 创建调试面板
-        const uiLayer = document.getElementById('ui-layer');
-        debugEl = document.createElement('div');
-        debugEl.id = 'debug-info';
-        debugEl.style.marginTop = '10px';
-        debugEl.style.fontSize = '12px';
-        debugEl.style.color = '#0f0';
-        debugEl.style.fontFamily = 'monospace';
-        debugEl.style.background = 'rgba(0,0,0,0.5)';
-        debugEl.style.padding = '5px';
-        debugEl.style.whiteSpace = 'pre'; // 保持换行
-        uiLayer.appendChild(debugEl);
+    const debugEl = document.getElementById('debug-container');
+    const fpsEl = document.getElementById('fps-display');
+    
+    // 优先更新 FPS
+    if (fpsEl) {
+        fpsEl.innerText = `FPS: ${riggedData.fps || '--'}`;
     }
+
+    if (!debugEl) return;
     
     const face = riggedData.face;
     const pose = riggedData.pose;
@@ -170,7 +178,7 @@ Body Z: ${(spine.z * 180 / Math.PI).toFixed(1)}°
              const isVisible = (p) => p && p.visibility > 0.5;
              
              if (isVisible(leftShoulder) && isVisible(rightShoulder)) {
-                 html += `\n[POSE] Calc Failed (Shoulders OK, maybe too close?)`;
+                 html += `\n[POSE] Calc Failed (Visible but not solved)`;
              } else {
                  html += `\n[POSE] Calc Failed (Shoulders not visible)`;
              }
@@ -182,11 +190,6 @@ Body Z: ${(spine.z * 180 / Math.PI).toFixed(1)}°
     // 原始数据状态
     const raw = riggedData.raw || {};
     html += `\n[RAW] Face: ${raw.faceLandmarks ? 'OK' : 'NO'}, Pose: ${raw.poseLandmarks ? 'OK' : 'NO'}`;
-    
-    // FPS & Memory
-    if (riggedData.fps) {
-        html += ` | FPS: ${riggedData.fps}`;
-    }
     
     if (window.performance && window.performance.memory) {
         const mem = window.performance.memory;

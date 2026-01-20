@@ -23,7 +23,7 @@
         body { margin: 0; overflow: hidden; background-color: #202020; font-family: sans-serif; }
         #canvas { width: 100vw; height: 100vh; display: block; }
         
-        /* UI 覆盖层 */
+        /* 左侧控制面板 */
         #ui-layer {
             position: absolute;
             top: 20px;
@@ -33,13 +33,64 @@
             padding: 15px;
             border-radius: 8px;
             color: white;
-            max-width: 300px;
+            width: 260px; /* 稍微缩小宽度 */
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        /* 右侧监控面板 */
+        #monitor-panel {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 280px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 8px;
+            color: white;
+            z-index: 100;
+            display: none; /* 初始隐藏，摄像头开启后显示 */
+            flex-direction: column;
+            max-height: 90vh;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        .panel-header {
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px 8px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .panel-header span {
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .toggle-icon {
+            transition: transform 0.3s;
+        }
+
+        #monitor-panel.collapsed .toggle-icon {
+            transform: rotate(-90deg);
+        }
+
+        #monitor-content {
+            padding: 10px;
+            overflow-y: auto;
+            transition: max-height 0.3s;
+        }
+
+        #monitor-panel.collapsed #monitor-content {
+            display: none;
         }
         
         #video-preview {
             width: 100%;
             border-radius: 4px;
-            margin-top: 10px;
             transform: scaleX(-1); /* 镜像翻转 */
             background: #000;
             display: block;
@@ -52,7 +103,6 @@
         #output-canvas {
             width: 100%;
             border-radius: 4px;
-            margin-top: 10px;
             transform: scaleX(-1);
             position: absolute;
             top: 0;
@@ -66,8 +116,10 @@
             position: relative;
             width: 100%;
             padding-top: 75%; /* 4:3 比例 */
-            display: none; /* 初始隐藏 */
-            margin-top: 10px;
+            background: #000;
+            border-radius: 4px;
+            overflow: hidden;
+            cursor: pointer; /* 提示可点击 */
         }
         
         .video-container video, .video-container canvas {
@@ -76,6 +128,18 @@
             left: 0;
             width: 100%;
             height: 100%;
+        }
+
+        /* 调试信息区域 */
+        #debug-container {
+            margin-top: 10px;
+            font-size: 11px; 
+            font-family: monospace; 
+            color: #0f0; 
+            white-space: pre-wrap;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 5px;
+            border-radius: 4px;
         }
 
         input[type="text"] {
@@ -234,18 +298,28 @@
         <div id="load-progress"><div id="load-progress-bar"></div></div>
         <div id="load-progress-text"></div>
         
-        <div class="video-container" id="video-container">
-            <button id="video-close-btn" class="close-btn" title="关闭全屏">×</button>
-            <video id="video-preview" playsinline></video>
-            <canvas id="output-canvas"></canvas>
-        </div>
-
         <!-- 调试设置面板 -->
         <div style="margin-top: 10px; background: #333; padding: 5px; border-radius: 4px; font-size: 12px;">
             <div style="margin-bottom: 5px; font-weight: bold; color: #ddd;">骨骼显示设置</div>
             <label style="margin-right: 10px; cursor: pointer;"><input type="checkbox" id="cb-face" checked> 面部</label>
             <label style="margin-right: 10px; cursor: pointer;"><input type="checkbox" id="cb-pose" checked> 身体</label>
             <label style="cursor: pointer;"><input type="checkbox" id="cb-hands" checked> 手部</label>
+        </div>
+    </div>
+
+    <!-- 右侧监控面板 (新) -->
+    <div id="monitor-panel">
+        <div class="panel-header" id="monitor-header">
+            <span>实时监控 <span id="fps-display" style="font-size:12px; color:#0f0; margin-left:10px;">FPS: --</span></span>
+            <span class="toggle-icon">▼</span>
+        </div>
+        <div id="monitor-content">
+            <div class="video-container" id="video-container">
+                <button id="video-close-btn" class="close-btn" title="关闭全屏">×</button>
+                <video id="video-preview" playsinline></video>
+                <canvas id="output-canvas"></canvas>
+            </div>
+            <div id="debug-container">等待数据...</div>
         </div>
     </div>
 
