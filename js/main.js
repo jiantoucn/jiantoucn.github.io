@@ -31,9 +31,13 @@ function bindEvents() {
         
         try {
             await CameraController.init('video-preview', 'output-canvas', (riggedFace) => {
+                // 更新 Live2D
                 Live2DController.update(riggedFace);
+                
+                // 更新 UI 调试信息
+                updateDebugUI(riggedFace);
             });
-            statusText.innerText = "摄像头正在运行 (v1.5)";
+            statusText.innerText = "摄像头正在运行 (v1.6)";
             document.getElementById('btn-camera').disabled = true;
         } catch (err) {
             statusText.innerText = "摄像头启动失败: " + err.message;
@@ -61,6 +65,32 @@ function bindEvents() {
     };
 }
 
+// 调试 UI 更新函数
+function updateDebugUI(riggedFace) {
+    let debugEl = document.getElementById('debug-info');
+    if (!debugEl) {
+        // 创建调试面板
+        const uiLayer = document.getElementById('ui-layer');
+        debugEl = document.createElement('div');
+        debugEl.id = 'debug-info';
+        debugEl.style.marginTop = '10px';
+        debugEl.style.fontSize = '12px';
+        debugEl.style.color = '#0f0';
+        debugEl.style.fontFamily = 'monospace';
+        debugEl.style.background = 'rgba(0,0,0,0.5)';
+        debugEl.style.padding = '5px';
+        uiLayer.appendChild(debugEl);
+    }
+    
+    const head = riggedFace.head;
+    debugEl.innerHTML = `
+        Pitch: ${head.degrees.x.toFixed(1)}°<br>
+        Yaw:   ${head.degrees.y.toFixed(1)}°<br>
+        Roll:  ${head.degrees.z.toFixed(1)}°<br>
+        Mouth: ${riggedFace.mouth.y.toFixed(2)}
+    `;
+}
+
 async function handleZipUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -73,17 +103,24 @@ async function handleZipUpload(event) {
         let modelFileEntry = null;
         let modelDir = '';
 
-        // 寻找 .model3.json
+        // 寻找 .model3.json (优先) 或 .model.json
         for (const [relativePath, entry] of Object.entries(zip.files)) {
             if (entry.dir) continue;
-            if (relativePath.endsWith('.model3.json') || relativePath.endsWith('.model.json')) {
+            if (relativePath.endsWith('.model3.json')) {
                 modelFileEntry = entry;
-                const lastSlashIndex = relativePath.lastIndexOf('/');
-                if (lastSlashIndex !== -1) {
-                    modelDir = relativePath.substring(0, lastSlashIndex + 1);
-                }
                 break;
             }
+            if (relativePath.endsWith('.model.json')) { // 兼容 Cubism 2
+                modelFileEntry = entry;
+            }
+        }
+        
+        // 重新遍历获取目录 (因为上面可能只找到了文件)
+        if (modelFileEntry) {
+             const lastSlashIndex = modelFileEntry.name.lastIndexOf('/');
+             if (lastSlashIndex !== -1) {
+                 modelDir = modelFileEntry.name.substring(0, lastSlashIndex + 1);
+             }
         }
 
         if (!modelFileEntry) {

@@ -87,21 +87,68 @@ window.Live2DController = {
         const eye = riggedFace.eye;
         const mouth = riggedFace.mouth;
 
-        if(core.setParameterValueById) {
-            core.setParameterValueById('ParamAngleX', head.degrees.y); 
-            core.setParameterValueById('ParamAngleY', head.degrees.x);
-            core.setParameterValueById('ParamAngleZ', head.degrees.z);
-            core.setParameterValueById('ParamEyeLOpen', 1 - eye.l);
-            core.setParameterValueById('ParamEyeROpen', 1 - eye.r);
-            if (riggedFace.pupil) {
-                core.setParameterValueById('ParamEyeBallX', riggedFace.pupil.x);
-                core.setParameterValueById('ParamEyeBallY', riggedFace.pupil.y);
-            }
-            core.setParameterValueById('ParamMouthOpenY', mouth.y);
-            core.setParameterValueById('ParamMouthForm', 0.3 + mouth.x);
-            core.setParameterValueById('ParamBodyAngleX', head.degrees.y * 0.5);
-            core.setParameterValueById('ParamBodyAngleY', head.degrees.x * 0.5);
-            core.setParameterValueById('ParamBodyAngleZ', head.degrees.z * 0.5);
+        // 调试：每 60 帧打印一次头部角度，证明数据进来了
+        if (!window.debugCounter) window.debugCounter = 0;
+        window.debugCounter++;
+        if (window.debugCounter % 60 === 0) {
+            console.log(`Live2D Update - Yaw: ${head.degrees.y.toFixed(2)}, Pitch: ${head.degrees.x.toFixed(2)}`);
         }
+
+        // 兼容 Cubism 4 (setParameterValueById) 和 Cubism 2 (setParamFloat)
+        const setParam = (id, value) => {
+            if (core.setParameterValueById) {
+                core.setParameterValueById(id, value);
+            } else if (core.setParamFloat) {
+                // Cubism 2 ID 映射 (转大写并添加 PARAM_)
+                let v2Id = id;
+                // 常见映射表
+                const map = {
+                    'ParamAngleX': 'PARAM_ANGLE_X',
+                    'ParamAngleY': 'PARAM_ANGLE_Y',
+                    'ParamAngleZ': 'PARAM_ANGLE_Z',
+                    'ParamEyeLOpen': 'PARAM_EYE_L_OPEN',
+                    'ParamEyeROpen': 'PARAM_EYE_R_OPEN',
+                    'ParamEyeBallX': 'PARAM_EYE_BALL_X',
+                    'ParamEyeBallY': 'PARAM_EYE_BALL_Y',
+                    'ParamMouthOpenY': 'PARAM_MOUTH_OPEN_Y',
+                    'ParamMouthForm': 'PARAM_MOUTH_FORM',
+                    'ParamBodyAngleX': 'PARAM_BODY_ANGLE_X',
+                    'ParamBodyAngleY': 'PARAM_BODY_ANGLE_Y',
+                    'ParamBodyAngleZ': 'PARAM_BODY_ANGLE_Z'
+                };
+                if (map[id]) v2Id = map[id];
+                
+                // 尝试查找索引
+                let index = -1;
+                if (core.getParamIndex) {
+                    index = core.getParamIndex(v2Id);
+                }
+                
+                if (index !== -1) {
+                    core.setParamFloat(index, value);
+                } else {
+                    // 尝试直接用 id (有些非标模型)
+                    try { core.setParamFloat(v2Id, value); } catch(e) {}
+                }
+            }
+        };
+
+        // 设置参数
+        setParam('ParamAngleX', head.degrees.y); 
+        setParam('ParamAngleY', head.degrees.x);
+        setParam('ParamAngleZ', head.degrees.z);
+        setParam('ParamEyeLOpen', 1 - eye.l);
+        setParam('ParamEyeROpen', 1 - eye.r);
+        
+        if (riggedFace.pupil) {
+            setParam('ParamEyeBallX', riggedFace.pupil.x);
+            setParam('ParamEyeBallY', riggedFace.pupil.y);
+        }
+        
+        setParam('ParamMouthOpenY', mouth.y);
+        setParam('ParamMouthForm', 0.3 + mouth.x); // 稍微修正嘴型
+        setParam('ParamBodyAngleX', head.degrees.y * 0.5);
+        setParam('ParamBodyAngleY', head.degrees.x * 0.5);
+        setParam('ParamBodyAngleZ', head.degrees.z * 0.5);
     }
 };
