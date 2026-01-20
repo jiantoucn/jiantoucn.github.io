@@ -29,7 +29,7 @@
             margin-top: 10px;
             transform: scaleX(-1); /* 镜像翻转 */
             background: #000;
-            display: none; /* 默认隐藏，开启摄像头后显示 */
+            display: block;
             position: absolute;
             top: 0;
             left: 0;
@@ -115,7 +115,7 @@
 <body>
 
     <div id="ui-layer">
-        <h3>Live2D 面部捕捉 <span style="font-size: 0.6em; color: #888; background: #333; padding: 2px 4px; border-radius: 4px;">v1.3</span></h3>
+        <h3>Live2D 面部捕捉 <span style="font-size: 0.6em; color: #888; background: #333; padding: 2px 4px; border-radius: 4px;">v1.4</span></h3>
         
         <!-- 本地上传区域 -->
         <div style="margin-bottom: 15px; border-bottom: 1px solid #444; padding-bottom: 15px;">
@@ -149,7 +149,7 @@
     <canvas id="canvas"></canvas>
 
     <script>
-        // 版本 v1.3 - PWA 支持 + 最保守初始化 + 骨骼可视化
+        // 版本 v1.4 - PWA 支持 + 最保守初始化 + 骨骼可视化
         const { Application } = PIXI;
         // 确保 PIXI.live2d 存在
         if (!PIXI.live2d) {
@@ -204,24 +204,23 @@
                 currentModel = model;
                 app.stage.addChild(model);
 
-                // 自动缩放和定位 (增加安全检查)
-                const modelWidth = model.width || 800; // 防止为 0
-                const modelHeight = model.height || 800;
+                const bounds = model.getLocalBounds();
+                const modelWidth = bounds.width || model.width || 800;
+                const modelHeight = bounds.height || model.height || 800;
                 
-                // 保守的缩放逻辑
                 let scaleX = (innerWidth * 0.4) / modelWidth;
                 let scaleY = (innerHeight * 0.8) / modelHeight;
                 let scale = Math.min(scaleX, scaleY);
                 
-                // 防止缩放异常
                 if (!Number.isFinite(scale) || scale <= 0) {
                     scale = 0.25;
-                    console.warn("模型尺寸异常，使用默认缩放 0.25");
                 }
                 
                 model.scale.set(scale);
-                model.anchor.set(0.5, 0.5);
+                model.pivot.set(bounds.x + modelWidth / 2, bounds.y + modelHeight / 2);
                 model.position.set(innerWidth / 2, innerHeight / 2 + 100);
+                model.visible = true;
+                model.alpha = 1;
 
                 statusText.innerText = "模型加载成功";
                 console.log("Model loaded:", model);
@@ -276,6 +275,8 @@
             
             statusText.innerText = "正在初始化摄像头...";
             videoContainer.style.display = "block";
+            videoElement.style.display = "block";
+            canvasElement.style.display = "block";
 
             try {
                 faceMesh = new FaceMesh({locateFile: (file) => {
@@ -332,7 +333,7 @@
                 canvasElement.height = 480;
 
                 await camera.start();
-                statusText.innerText = "摄像头正在运行 (v1.1)";
+                statusText.innerText = "摄像头正在运行 (v1.4)";
                 document.getElementById('btn-camera').disabled = true;
 
             } catch (err) {
@@ -481,10 +482,17 @@
         // 窗口大小改变时重置模型位置
         window.onresize = () => {
             if (currentModel) {
-                 const scaleX = (innerWidth * 0.4) / (currentModel.width || 800);
-                const scaleY = (innerHeight * 0.8) / (currentModel.height || 800);
-                const scale = Math.min(scaleX, scaleY);
-                // 这里可能需要重新计算原始比例，简单起见不再重复设置
+                const bounds = currentModel.getLocalBounds();
+                const modelWidth = bounds.width || currentModel.width || 800;
+                const modelHeight = bounds.height || currentModel.height || 800;
+                let scaleX = (innerWidth * 0.4) / modelWidth;
+                let scaleY = (innerHeight * 0.8) / modelHeight;
+                let scale = Math.min(scaleX, scaleY);
+                if (!Number.isFinite(scale) || scale <= 0) {
+                    scale = 0.25;
+                }
+                currentModel.scale.set(scale);
+                currentModel.pivot.set(bounds.x + modelWidth / 2, bounds.y + modelHeight / 2);
                 currentModel.position.set(innerWidth / 2, innerHeight / 2 + 100);
             }
         };
