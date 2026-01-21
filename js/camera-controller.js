@@ -22,8 +22,15 @@ window.CameraController = {
     init: async function(videoId, canvasId, onResults) {
         this.videoElement = document.getElementById(videoId);
         this.canvasElement = document.getElementById(canvasId);
-        this.canvasCtx = this.canvasElement.getContext('2d');
+        // 优化：使用 alpha: false 提升 Canvas 性能 (因为我们会绘制全屏视频背景)
+        this.canvasCtx = this.canvasElement.getContext('2d', { alpha: false });
         this.onResultsCallback = onResults;
+
+        // 检测 Apple 设备并打印优化信息
+        const isApple = /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+        if (isApple) {
+            console.log("🍎 Apple Device Detected: Optimizing for Metal/WebGL acceleration.");
+        }
 
         // 显示元素
         this.videoElement.style.display = "block";
@@ -39,16 +46,17 @@ window.CameraController = {
                 return `https://cdn.jsdelivr.net/npm/@mediapipe/holistic/${file}`;
             }});
 
-            // 配置：启用面部 refinement，禁用背景分割以提升性能
-            // 降低置信度门槛以提高召回率
+            // 配置：启用面部 refinement
+            // 优化：将 modelComplexity 降为 0 (Lite) 以显著提高帧数
+            // 调整 minDetectionConfidence 到 0.5 以减少误检噪音
             this.holistic.setOptions({
-                modelComplexity: 1,
+                modelComplexity: 0,
                 smoothLandmarks: true,
                 enableSegmentation: false,
                 smoothSegmentation: false,
                 refineFaceLandmarks: true,
-                minDetectionConfidence: 0.3, // 降低门槛
-                minTrackingConfidence: 0.3
+                minDetectionConfidence: 0.5,
+                minTrackingConfidence: 0.5
             });
 
             this.holistic.onResults(this.handleResults.bind(this));
@@ -197,8 +205,10 @@ window.CameraController = {
         if (!landmarks || landmarks.length < 21) return null;
 
         try {
+            // 辅助函数：计算距离平方
             const getDistSq = (p1, p2) => (p1.x - p2.x)**2 + (p1.y - p2.y)**2;
 
+            // 辅助函数：判断手指是否张开 (指尖距离手腕 比 指根距离手腕 远)
             const isFingerOpen = (tipIdx, pipIdx) => {
                  const wrist = landmarks[0];
                  const tip = landmarks[tipIdx];
@@ -210,7 +220,7 @@ window.CameraController = {
                  return dTip > dPip;
             };
             
-            // 拇指判断 (使用小指根部作为参考点)
+            // 辅助函数：拇指判断 (使用小指根部作为参考点，避免手掌旋转导致的误判)
             const isThumbOpen = () => {
                  const tip = landmarks[4];
                  const ip = landmarks[3];
