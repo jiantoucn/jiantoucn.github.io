@@ -216,6 +216,77 @@ function bindEvents() {
             window.open('sender.html', '_blank');
         });
     }
+
+    // ----------------------------------------------------
+    // 新增：UI 交互逻辑 (v1.36.0)
+    // ----------------------------------------------------
+    const uiLayer = document.getElementById('ui-layer');
+    const btnToggleUI = document.getElementById('btn-toggle-ui');
+    
+    // 1. 显隐切换
+    if (btnToggleUI && uiLayer) {
+        btnToggleUI.addEventListener('click', () => {
+            if (uiLayer.style.opacity === '0') {
+                uiLayer.style.opacity = '1';
+                uiLayer.style.pointerEvents = 'auto';
+                // uiLayer.style.transform = 'scale(1)'; // 不重置缩放，只处理透明度
+            } else {
+                uiLayer.style.opacity = '0';
+                uiLayer.style.pointerEvents = 'none';
+            }
+        });
+    }
+
+    // 2. 菜单缩放
+    const sliderScale = document.getElementById('slider-ui-scale');
+    const scaleVal = document.getElementById('scale-val');
+    if (sliderScale && uiLayer) {
+        sliderScale.addEventListener('input', (e) => {
+            const val = e.target.value;
+            uiLayer.style.transform = `scale(${val})`;
+            if (scaleVal) scaleVal.innerText = Math.round(val * 100) + '%';
+        });
+    }
+
+    // 3. 背景颜色切换
+    const btnBgDefault = document.getElementById('btn-bg-default');
+    const btnBgTransparent = document.getElementById('btn-bg-transparent');
+    const btnBgGreen = document.getElementById('btn-bg-green');
+    const canvas = document.getElementById('canvas');
+
+    // 辅助函数：重置所有按钮边框
+    const resetBgBtns = () => {
+        [btnBgDefault, btnBgTransparent, btnBgGreen].forEach(btn => {
+            if(btn) btn.style.border = 'none';
+        });
+    };
+
+    if (btnBgDefault) {
+        btnBgDefault.addEventListener('click', () => {
+            document.body.style.background = '#222'; // 默认深灰
+            if (canvas) canvas.style.background = '';
+            resetBgBtns();
+            btnBgDefault.style.border = '2px solid white';
+        });
+    }
+
+    if (btnBgTransparent) {
+        btnBgTransparent.addEventListener('click', () => {
+            document.body.style.background = 'transparent'; // 透明
+            if (canvas) canvas.style.background = 'transparent';
+            resetBgBtns();
+            btnBgTransparent.style.border = '2px solid white';
+        });
+    }
+
+    if (btnBgGreen) {
+        btnBgGreen.addEventListener('click', () => {
+            document.body.style.background = '#00ff00'; // 绿幕
+            if (canvas) canvas.style.background = '#00ff00';
+            resetBgBtns();
+            btnBgGreen.style.border = '2px solid white';
+        });
+    }
 }
 
 // 调试 UI 更新函数
