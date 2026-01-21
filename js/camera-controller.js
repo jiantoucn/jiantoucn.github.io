@@ -192,19 +192,21 @@ window.CameraController = {
         }
     },
 
-    // 简单的手势数字识别 (0-5, 6, 8)
+    // 简单的手势数字识别 (0-5, 6, 8, 7, 9)
     detectNumberGesture: function(landmarks) {
         if (!landmarks || landmarks.length < 21) return null;
 
         try {
+            const getDistSq = (p1, p2) => (p1.x - p2.x)**2 + (p1.y - p2.y)**2;
+
             const isFingerOpen = (tipIdx, pipIdx) => {
                  const wrist = landmarks[0];
                  const tip = landmarks[tipIdx];
                  const pip = landmarks[pipIdx];
                  if (!wrist || !tip || !pip) return false;
                  
-                 const dTip = (tip.x - wrist.x)**2 + (tip.y - wrist.y)**2;
-                 const dPip = (pip.x - wrist.x)**2 + (pip.y - wrist.y)**2;
+                 const dTip = getDistSq(tip, wrist);
+                 const dPip = getDistSq(pip, wrist);
                  return dTip > dPip;
             };
             
@@ -215,8 +217,8 @@ window.CameraController = {
                  const ref = landmarks[17]; // Pinky MCP
                  if (!tip || !ip || !ref) return false;
 
-                 const dTip = (tip.x - ref.x)**2 + (tip.y - ref.y)**2;
-                 const dIp = (ip.x - ref.x)**2 + (ip.y - ref.y)**2;
+                 const dTip = getDistSq(tip, ref);
+                 const dIp = getDistSq(ip, ref);
                  return dTip > dIp;
             };
 
@@ -226,14 +228,64 @@ window.CameraController = {
             const ring = isFingerOpen(16, 14);
             const pinky = isFingerOpen(20, 18);
 
-            // 特殊手势优先判断
+            // 关键点坐标
+            const thumbTip = landmarks[4];
+            const indexTip = landmarks[8];
+            const middleTip = landmarks[12];
+
+            // ------------------------------------------------
+            // 特殊手势判断 (优先级高于计数)
+            // ------------------------------------------------
+
+            // 7: 捏合 (拇指 + 食指 + 中指 聚拢)
+            // 中国手势 7: 拇指、食指、中指指尖捏在一起
+            if (!ring && !pinky) {
+                const dThumbIndex = getDistSq(thumbTip, indexTip);
+                const dThumbMiddle = getDistSq(thumbTip, middleTip);
+                const pinchThreshold = 0.005; // 阈值需调试 (0.07^2 ≈ 0.005)
+
+                if (dThumbIndex < pinchThreshold && dThumbMiddle < pinchThreshold) {
+                    return 7;
+                }
+            }
+
+            // 9: 勾指 (食指弯曲，其他关闭)
+            // 中国手势 9: 食指成钩状
+            if (!middle && !ring && !pinky && !thumb) {
+                // 判断食指是否弯曲 (Hook)
+                // 计算向量夹角: PIP->MCP (6->5) 和 PIP->TIP (6->8)
+                const p5 = landmarks[5]; // Index MCP
+                const p6 = landmarks[6]; // Index PIP
+                const p8 = landmarks[8]; // Index Tip
+
+                const v1 = {x: p5.x - p6.x, y: p5.y - p6.y};
+                const v2 = {x: p8.x - p6.x, y: p8.y - p6.y};
+                
+                const mag1 = Math.sqrt(v1.x**2 + v1.y**2);
+                const mag2 = Math.sqrt(v2.x**2 + v2.y**2);
+
+                if (mag1 * mag2 > 0) {
+                    const dot = v1.x * v2.x + v1.y * v2.y;
+                    const cosTheta = dot / (mag1 * mag2);
+                    
+                    // cosTheta: -1(直) -> 0(90度) -> 1(折叠)
+                    // 弯曲判断: 大于 -0.85 (约150度) 且 小于 0.5 (避免完全折叠成拳头)
+                    // 同时食指不能完全缩回去 (index 可能是 true 或 false，取决于弯曲程度)
+                    if (cosTheta > -0.85 && cosTheta < 0.5) {
+                        return 9;
+                    }
+                }
+            }
+
             // 6: 拇指+小指 (其他关闭)
             if (thumb && pinky && !index && !middle && !ring) return 6;
             
-            // 8: 拇指+食指 (其他关闭)
+            // 8: 拇指+食指 (其他关闭) - 中国手势 8
             if (thumb && index && !middle && !ring && !pinky) return 8;
 
-            // 默认: 计算张开的手指数量
+            // ------------------------------------------------
+            // 默认: 计数 (0-5)
+            // ------------------------------------------------
             let count = 0;
             if (thumb) count++;
             if (index) count++;
