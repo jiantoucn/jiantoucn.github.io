@@ -284,7 +284,7 @@
     <!-- 提高 UI 层级，并强制 pointer-events 以确保 OBS 可交互 -->
     <!-- 移除 transition: transform，因为 transform 在 OBS 中会导致点击坐标映射错误 -->
     <div id="ui-layer" style="transform-origin: top left; transition: opacity 0.2s; z-index: 1000; pointer-events: auto;">
-        <h3 style="margin: 0; color: #3aa0ff;">网页摄像头 Live2D 面捕 (v1.36.3)</h3>
+        <h3 style="margin: 0; color: #3aa0ff;">网页摄像头 Live2D 面捕 (v1.36.4)</h3>
         
         <!-- 网络链接区域 -->
         <div style="margin-bottom: 10px;">
@@ -308,6 +308,18 @@
         <div id="load-progress"><div id="load-progress-bar"></div></div>
         <div id="load-progress-text"></div>
         
+        <!-- 摄像头设置 -->
+        <div style="margin-top: 10px; background: #333; padding: 5px; border-radius: 4px; font-size: 12px;">
+            <div style="font-weight: bold; font-size: 13px; margin-bottom: 5px; color: #ddd;">📷 摄像头设置</div>
+            <label>分辨率:</label>
+            <select id="cam-resolution" style="width: 100%; margin-top: 3px; background: #444; color: white; border: none; padding: 4px; border-radius: 3px;">
+                <option value="480x360">360p (流畅 - 低功耗)</option>
+                <option value="640x480">480p (均衡 - 兼容好)</option>
+                <option value="1280x720" selected>720p (高清 - 推荐)</option>
+                <option value="1920x1080">1080p (超清 - 高性能)</option>
+            </select>
+        </div>
+
         <!-- 调试设置面板 -->
         <div style="margin-top: 10px; background: #333; padding: 5px; border-radius: 4px; font-size: 12px;">
             <div style="margin-bottom: 5px; font-weight: bold; color: #ddd;">骨骼显示设置</div>

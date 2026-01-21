@@ -19,14 +19,18 @@ window.CameraController = {
         showHands: true
     },
 
+    // 默认分辨率 (HD)
+    currentWidth: 1280,
+    currentHeight: 720,
+
     init: async function(videoId, canvasId, onResults) {
         this.videoElement = document.getElementById(videoId);
         this.canvasElement = document.getElementById(canvasId);
-        // 优化：使用 alpha: false 提升 Canvas 性能 (因为我们会绘制全屏视频背景)
+        // 优化：使用 alpha: false 提升 Canvas 性能
         this.canvasCtx = this.canvasElement.getContext('2d', { alpha: false });
         this.onResultsCallback = onResults;
 
-        // 检测 Apple 设备并打印优化信息
+        // 检测 Apple 设备
         const isApple = /Mac|iPod|iPhone|iPad/.test(navigator.platform);
         if (isApple) {
             console.log("🍎 Apple Device Detected: Optimizing for Metal/WebGL acceleration.");
@@ -36,7 +40,6 @@ window.CameraController = {
         this.videoElement.style.display = "block";
         this.canvasElement.style.display = "block";
         
-        // 显示容器 (假设有一个容器)
         const container = document.getElementById('video-container');
         if(container) container.style.display = "block";
 
@@ -46,10 +49,7 @@ window.CameraController = {
                 return `https://cdn.jsdelivr.net/npm/@mediapipe/holistic/${file}`;
             }});
 
-            // 配置：启用面部 refinement
-            // 策略调整：响应用户需求，不计性能代价，追求最高画质和追踪质量
-            // modelComplexity: 2 (Heavy) 模型最重，但精度最高
-            // 阈值提高到 0.7 以减少抖动
+            // 配置
             this.holistic.setOptions({
                 modelComplexity: 2,
                 smoothLandmarks: true,
@@ -62,24 +62,55 @@ window.CameraController = {
 
             this.holistic.onResults(this.handleResults.bind(this));
 
-            this.camera = new Camera(this.videoElement, {
-                onFrame: async () => {
-                    await this.holistic.send({image: this.videoElement});
-                },
-                width: 1280, // 提升至 HD 分辨率
-                height: 720
-            });
-
-            // 修正 CameraUtils 的宽高
-            this.camera.camera_ = { ...this.camera.camera_, width: 1280, height: 720 }; 
-            this.canvasElement.width = 1280;
-            this.canvasElement.height = 720;
-
-            await this.camera.start();
+            // 启动摄像头
+            await this.startCamera();
             return true;
         } catch (err) {
             console.error(err);
             throw err;
+        }
+    },
+
+    // 独立启动摄像头方法，支持重启
+    startCamera: async function() {
+        if (this.camera) {
+            // 如果已有实例，先停止 (MediaPipe CameraUtils 没有直接的 stop 方法，但通常可以重新 new)
+            // 实际上 CameraUtils 内部封装了 requestAnimationFrame，重新 new 之前最好能停止之前的循环
+            // 但官方文档未提供显式 destroy，我们直接覆盖
+            // 如果有 stop 方法则调用
+            if (typeof this.camera.stop === 'function') {
+                await this.camera.stop();
+            }
+        }
+
+        console.log(`Starting camera with resolution: ${this.currentWidth}x${this.currentHeight}`);
+
+        this.camera = new Camera(this.videoElement, {
+            onFrame: async () => {
+                await this.holistic.send({image: this.videoElement});
+            },
+            width: this.currentWidth,
+            height: this.currentHeight
+        });
+
+        // 修正 CameraUtils 的宽高并同步 Canvas
+        this.camera.camera_ = { ...this.camera.camera_, width: this.currentWidth, height: this.currentHeight }; 
+        this.canvasElement.width = this.currentWidth;
+        this.canvasElement.height = this.currentHeight;
+
+        await this.camera.start();
+    },
+
+    // 切换分辨率接口
+    setResolution: async function(width, height) {
+        if (this.currentWidth === width && this.currentHeight === height) return;
+        
+        this.currentWidth = width;
+        this.currentHeight = height;
+        
+        // 只有当已经初始化过 (holistic 存在) 时才重启摄像头
+        if (this.holistic) {
+            await this.startCamera();
         }
     },
 

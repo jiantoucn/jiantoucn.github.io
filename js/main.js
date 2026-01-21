@@ -269,6 +269,32 @@ function bindEvents() {
         });
     }
 
+    // 4. 摄像头分辨率切换
+    const resSelect = document.getElementById('cam-resolution');
+    if (resSelect) {
+        resSelect.addEventListener('change', async (e) => {
+            const val = e.target.value;
+            const [w, h] = val.split('x').map(Number);
+            
+            if (w && h && window.CameraController) {
+                // 暂时禁用防止连点
+                resSelect.disabled = true;
+                const originalText = resSelect.options[resSelect.selectedIndex].text;
+                resSelect.options[resSelect.selectedIndex].text = "切换中...";
+                
+                try {
+                    await CameraController.setResolution(w, h);
+                } catch(err) {
+                    console.error("Resolution switch failed", err);
+                    alert("切换分辨率失败，可能是摄像头不支持或被占用");
+                } finally {
+                    resSelect.disabled = false;
+                    resSelect.options[resSelect.selectedIndex].text = originalText;
+                }
+            }
+        });
+    }
+
     // 3. 背景颜色切换
     const btnBgDefault = document.getElementById('btn-bg-default');
     const btnBgTransparent = document.getElementById('btn-bg-transparent');
