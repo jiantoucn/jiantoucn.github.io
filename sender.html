@@ -52,15 +52,41 @@
         }
         button:disabled { background: #555; }
         
+        #video-container {
+            position: relative;
+            width: 100%;
+            margin-top: 10px;
+        }
         #video-preview {
             width: 100%;
             border-radius: 8px;
             transform: scaleX(-1);
             background: black;
-            margin-top: 10px;
+            display: block;
         }
-        
-        .log {
+        #output-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transform: scaleX(-1);
+            pointer-events: none;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            width: 100%;
+            justify-content: center;
+        }
+        select {
+            padding: 8px;
+            background: #444;
+            color: white;
+            border: 1px solid #555;
+            border-radius: 4px;
+        }
             font-family: monospace;
             font-size: 12px;
             color: #aaa;
@@ -96,7 +122,24 @@
             <div id="connection-status" style="margin-top: 10px; color: #ffaa00;">未连接</div>
         </div>
 
-        <video id="video-preview" playsinline></video>
+        <div class="controls" id="camera-controls" style="display:none;">
+            <select id="sel-resolution">
+                <option value="480x360">360p (流畅)</option>
+                <option value="640x480" selected>480p (默认)</option>
+                <option value="1280x720">720p (高清)</option>
+            </select>
+            <select id="sel-model">
+                <option value="0">Lite (极速)</option>
+                <option value="1" selected>Full (均衡)</option>
+                <option value="2">Heavy (精准)</option>
+            </select>
+            <button id="btn-restart-cam" style="padding: 5px 10px; font-size: 14px;">应用设置</button>
+        </div>
+
+        <div id="video-container">
+            <video id="video-preview" playsinline></video>
+            <canvas id="output-canvas"></canvas>
+        </div>
         
         <div class="log" id="log-area"></div>
     </div>
@@ -159,36 +202,102 @@
         });
 
         // 3. 摄像头与 MediaPipe 逻辑
+        let holistic = null;
+        let camera = null;
+
+        // 默认配置
+        let config = {
+            width: 640,
+            height: 480,
+            complexity: 1
+        };
+
+        // 绑定设置按钮
+        document.getElementById('btn-restart-cam').addEventListener('click', () => {
+            const resVal = document.getElementById('sel-resolution').value;
+            const modelVal = document.getElementById('sel-model').value;
+            const [w, h] = resVal.split('x').map(Number);
+            
+            config.width = w;
+            config.height = h;
+            config.complexity = parseInt(modelVal);
+            
+            startCamera();
+        });
+
         async function startCamera() {
             const videoElement = document.getElementById('video-preview');
+            const canvasElement = document.getElementById('output-canvas');
+            const canvasCtx = canvasElement.getContext('2d');
             
-            const holistic = new Holistic({locateFile: (file) => {
-                return `https://cdn.jsdelivr.net/npm/@mediapipe/holistic/${file}`;
-            }});
+            // 显示控制条
+            document.getElementById('camera-controls').style.display = 'flex';
 
+            if (camera) {
+                // 尝试停止旧摄像头 (CameraUtils 没有 stop，只能重新 new)
+                // 这里我们直接重新初始化
+                log('重启摄像头...');
+            } else {
+                log('初始化摄像头...');
+            }
+
+            // 初始化 Holistic
+            if (!holistic) {
+                holistic = new Holistic({locateFile: (file) => {
+                    return `https://cdn.jsdelivr.net/npm/@mediapipe/holistic/${file}`;
+                }});
+                holistic.onResults(onResults);
+            }
+
+            // 更新选项
             holistic.setOptions({
-                modelComplexity: 1,
+                modelComplexity: config.complexity,
                 smoothLandmarks: true,
                 minDetectionConfidence: 0.5,
                 minTrackingConfidence: 0.5,
                 refineFaceLandmarks: true
             });
 
-            holistic.onResults(onResults);
-
-            const camera = new Camera(videoElement, {
+            // 初始化 Camera
+            camera = new Camera(videoElement, {
                 onFrame: async () => {
                     await holistic.send({image: videoElement});
                 },
-                width: 640,
-                height: 480
+                width: config.width,
+                height: config.height
             });
             
-            log('启动摄像头...');
+            // 设置 canvas 尺寸
+            canvasElement.width = config.width;
+            canvasElement.height = config.height;
+
             camera.start();
         }
 
         function onResults(results) {
+            // 绘制骨骼
+            const canvasElement = document.getElementById('output-canvas');
+            const canvasCtx = canvasElement.getContext('2d');
+            
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            
+            // 绘制
+            if (results.poseLandmarks) {
+                drawConnectors(canvasCtx, results.poseLandmarks, POSE_CONNECTIONS, {color: '#00FF00', lineWidth: 2});
+                drawLandmarks(canvasCtx, results.poseLandmarks, {color: '#FF0000', lineWidth: 1, radius: 3});
+            }
+            if (results.faceLandmarks) {
+                drawConnectors(canvasCtx, results.faceLandmarks, FACEMESH_TESSELATION, {color: '#C0C0C070', lineWidth: 1});
+            }
+            if (results.leftHandLandmarks) {
+                drawConnectors(canvasCtx, results.leftHandLandmarks, HAND_CONNECTIONS, {color: '#CC0000', lineWidth: 2});
+            }
+            if (results.rightHandLandmarks) {
+                drawConnectors(canvasCtx, results.rightHandLandmarks, HAND_CONNECTIONS, {color: '#00CC00', lineWidth: 2});
+            }
+            canvasCtx.restore();
+
             if (!conn || !conn.open) return;
 
             // 限制发送频率 (例如 30 FPS)

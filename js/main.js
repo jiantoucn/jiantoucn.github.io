@@ -295,6 +295,17 @@ function bindEvents() {
         });
     }
 
+    // 5. 模型精度切换
+    const complexitySelect = document.getElementById('cam-complexity');
+    if (complexitySelect) {
+        complexitySelect.addEventListener('change', (e) => {
+            const val = parseInt(e.target.value);
+            if (!isNaN(val) && window.CameraController) {
+                CameraController.setModelComplexity(val);
+            }
+        });
+    }
+
     // 3. 背景颜色切换
     const btnBgDefault = document.getElementById('btn-bg-default');
     const btnBgTransparent = document.getElementById('btn-bg-transparent');

@@ -22,6 +22,7 @@ window.CameraController = {
     // 默认分辨率 (HD)
     currentWidth: 1280,
     currentHeight: 720,
+    currentComplexity: 1, // 默认降回 Full (1) 以平衡性能
 
     init: async function(videoId, canvasId, onResults) {
         this.videoElement = document.getElementById(videoId);
@@ -50,15 +51,7 @@ window.CameraController = {
             }});
 
             // 配置
-            this.holistic.setOptions({
-                modelComplexity: 2,
-                smoothLandmarks: true,
-                enableSegmentation: false,
-                smoothSegmentation: false,
-                refineFaceLandmarks: true,
-                minDetectionConfidence: 0.7,
-                minTrackingConfidence: 0.7
-            });
+            this.updateHolisticOptions();
 
             this.holistic.onResults(this.handleResults.bind(this));
 
@@ -69,6 +62,19 @@ window.CameraController = {
             console.error(err);
             throw err;
         }
+    },
+
+    updateHolisticOptions: function() {
+        if (!this.holistic) return;
+        this.holistic.setOptions({
+            modelComplexity: this.currentComplexity,
+            smoothLandmarks: true,
+            enableSegmentation: false,
+            smoothSegmentation: false,
+            refineFaceLandmarks: true,
+            minDetectionConfidence: 0.7,
+            minTrackingConfidence: 0.7
+        });
     },
 
     // 独立启动摄像头方法，支持重启
@@ -83,7 +89,7 @@ window.CameraController = {
             }
         }
 
-        console.log(`Starting camera with resolution: ${this.currentWidth}x${this.currentHeight}`);
+        console.log(`Starting camera with resolution: ${this.currentWidth}x${this.currentHeight}, complexity: ${this.currentComplexity}`);
 
         this.camera = new Camera(this.videoElement, {
             onFrame: async () => {
@@ -111,6 +117,19 @@ window.CameraController = {
         // 只有当已经初始化过 (holistic 存在) 时才重启摄像头
         if (this.holistic) {
             await this.startCamera();
+        }
+    },
+
+    // 切换模型精度接口
+    setModelComplexity: async function(complexity) {
+        if (this.currentComplexity === complexity) return;
+        this.currentComplexity = complexity;
+        
+        if (this.holistic) {
+            this.updateHolisticOptions();
+            // 更改模型复杂度可能需要重置一些状态，最好重启一下流
+            // 但通常 setOptions 足够。为了保险起见，这里不重启摄像头，只更新 options
+            console.log(`Model complexity updated to: ${complexity}`);
         }
     },
 

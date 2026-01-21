@@ -284,19 +284,19 @@
     <!-- 提高 UI 层级，并强制 pointer-events 以确保 OBS 可交互 -->
     <!-- 移除 transition: transform，因为 transform 在 OBS 中会导致点击坐标映射错误 -->
     <div id="ui-layer" style="transform-origin: top left; transition: opacity 0.2s; z-index: 1000; pointer-events: auto;">
-        <h3 style="margin: 0; color: #3aa0ff;">网页摄像头 Live2D 面捕 (v1.36.4)</h3>
+        <h3 style="margin: 0; color: #3aa0ff;">网页摄像头 Live2D 面捕 (v1.37.1)</h3>
         
         <!-- 网络链接区域 -->
         <div style="margin-bottom: 10px;">
             <label style="display:block; margin-bottom:5px; font-weight:bold;">选择模型 / 输入链接</label>
             <select id="preset-select" style="width:100%; padding:5px; margin-bottom:5px; background:#333; color:white; border:1px solid #555;">
                 <option value="models/kei_en/kei_basic_free/runtime/kei_basic_free.model3.json">Kei Basic (本地)</option>
-                <option value="models/kei_en/kei_vowels_pro/runtime/kei_vowels_pro.model3.json" selected>Kei Vowels (本地)</option>
+                <option value="models/kei_en/kei_vowels_pro/runtime/kei_vowels_pro.model3.json">Kei Vowels (本地)</option>
                 <option value="models/YMT2.0/YMT2.0.model3.json">YMT2.0 (本地)</option>
                 <option value="models/小海豹试用版/试用版(水印不可去除).model3.json">小海豹 (本地)</option>
-                <option value="models/艾玛/艾玛.model3.json">艾玛 (本地)</option>
+                <option value="models/艾玛/艾玛.model3.json" selected>艾玛 (本地)</option>
             </select>
-            <input type="text" id="model-url" placeholder="输入 .model3.json 链接" value="models/kei_en/kei_vowels_pro/runtime/kei_vowels_pro.model3.json">
+            <input type="text" id="model-url" placeholder="输入 .model3.json 链接" value="models/艾玛/艾玛.model3.json">
             <button id="btn-load">🌐 加载模型</button>
         </div>
 
@@ -317,6 +317,13 @@
                 <option value="640x480">480p (均衡 - 兼容好)</option>
                 <option value="1280x720" selected>720p (高清 - 推荐)</option>
                 <option value="1920x1080">1080p (超清 - 高性能)</option>
+            </select>
+            
+            <label style="display:block; margin-top: 8px;">模型精度 (影响性能):</label>
+            <select id="cam-complexity" style="width: 100%; margin-top: 3px; background: #444; color: white; border: none; padding: 4px; border-radius: 3px;">
+                <option value="0">Lite (极速 - 精度低)</option>
+                <option value="1" selected>Full (均衡 - 默认)</option>
+                <option value="2">Heavy (精准 - 耗性能)</option>
             </select>
         </div>
 
