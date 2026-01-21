@@ -48,15 +48,16 @@ window.CameraController = {
 
             // 配置：启用面部 refinement
             // 优化：将 modelComplexity 降为 0 (Lite) 以显著提高帧数
-            // 调整 minDetectionConfidence 到 0.5 以减少误检噪音
+            // 调整 minDetectionConfidence 到 0.2 (极端优化) 以尽可能减少重检测
+            // 降低追踪阈值，即使追踪质量一般也继续使用，避免昂贵的重新检测
             this.holistic.setOptions({
                 modelComplexity: 0,
                 smoothLandmarks: true,
                 enableSegmentation: false,
                 smoothSegmentation: false,
                 refineFaceLandmarks: true,
-                minDetectionConfidence: 0.5,
-                minTrackingConfidence: 0.5
+                minDetectionConfidence: 0.2,
+                minTrackingConfidence: 0.2
             });
 
             this.holistic.onResults(this.handleResults.bind(this));
@@ -65,14 +66,14 @@ window.CameraController = {
                 onFrame: async () => {
                     await this.holistic.send({image: this.videoElement});
                 },
-                width: 640,
-                height: 480
+                width: 480, // 降低分辨率以倍增 FPS (原 640)
+                height: 360 // 保持 4:3 比例 (原 480)
             });
 
             // 修正 CameraUtils 的宽高
-            this.camera.camera_ = { ...this.camera.camera_, width: 640, height: 480 }; 
-            this.canvasElement.width = 640;
-            this.canvasElement.height = 480;
+            this.camera.camera_ = { ...this.camera.camera_, width: 480, height: 360 }; 
+            this.canvasElement.width = 480;
+            this.canvasElement.height = 360;
 
             await this.camera.start();
             return true;
@@ -105,14 +106,18 @@ window.CameraController = {
                 canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
                 canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
                 
-                // 1. 绘制 Pose
-                if (results.poseLandmarks && window.drawConnectors && this.drawConfig.showPose) {
-                    drawConnectors(canvasCtx, results.poseLandmarks, POSE_CONNECTIONS, {color: '#00FF00', lineWidth: 2});
-                }
+                // 只有在开启对应选项时才进行绘制操作，节省性能
+                const shouldDraw = window.drawConnectors && (this.drawConfig.showPose || this.drawConfig.showFace || this.drawConfig.showHands);
+                
+                if (shouldDraw) {
+                    // 1. 绘制 Pose
+                    if (results.poseLandmarks && this.drawConfig.showPose) {
+                        drawConnectors(canvasCtx, results.poseLandmarks, POSE_CONNECTIONS, {color: '#00FF00', lineWidth: 2});
+                    }
 
-                // 2. 绘制 Face
-                if (results.faceLandmarks && this.drawConfig.showFace) {
-                    if (window.drawConnectors) {
+                    // 2. 绘制 Face
+                    if (results.faceLandmarks && this.drawConfig.showFace) {
+                        // ... 这里的代码保持不变，通过逻辑跳过 ...
                         drawConnectors(canvasCtx, results.faceLandmarks, FACEMESH_TESSELATION, {color: '#C0C0C070', lineWidth: 1});
                         drawConnectors(canvasCtx, results.faceLandmarks, FACEMESH_RIGHT_EYE, {color: '#FF3030', lineWidth: 2});
                         drawConnectors(canvasCtx, results.faceLandmarks, FACEMESH_RIGHT_EYEBROW, {color: '#FF3030', lineWidth: 2});
@@ -125,17 +130,17 @@ window.CameraController = {
                              drawConnectors(canvasCtx, results.faceLandmarks, FACEMESH_LEFT_IRIS, {color: '#30FF30', lineWidth: 2});
                         }
                     }
-                }
 
-                // 3. 绘制 Hands
-                if (window.drawConnectors && window.HAND_CONNECTIONS && this.drawConfig.showHands) {
-                    if (results.leftHandLandmarks) {
-                        drawConnectors(canvasCtx, results.leftHandLandmarks, HAND_CONNECTIONS, {color: '#CC0000', lineWidth: 2});
-                        drawLandmarks(canvasCtx, results.leftHandLandmarks, {color: '#00FF00', lineWidth: 1});
-                    }
-                    if (results.rightHandLandmarks) {
-                        drawConnectors(canvasCtx, results.rightHandLandmarks, HAND_CONNECTIONS, {color: '#00CC00', lineWidth: 2});
-                        drawLandmarks(canvasCtx, results.rightHandLandmarks, {color: '#FF0000', lineWidth: 1});
+                    // 3. 绘制 Hands
+                    if (window.HAND_CONNECTIONS && this.drawConfig.showHands) {
+                        if (results.leftHandLandmarks) {
+                            drawConnectors(canvasCtx, results.leftHandLandmarks, HAND_CONNECTIONS, {color: '#CC0000', lineWidth: 2});
+                            drawLandmarks(canvasCtx, results.leftHandLandmarks, {color: '#00FF00', lineWidth: 1});
+                        }
+                        if (results.rightHandLandmarks) {
+                            drawConnectors(canvasCtx, results.rightHandLandmarks, HAND_CONNECTIONS, {color: '#00CC00', lineWidth: 2});
+                            drawLandmarks(canvasCtx, results.rightHandLandmarks, {color: '#FF0000', lineWidth: 1});
+                        }
                     }
                 }
 
