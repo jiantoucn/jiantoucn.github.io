@@ -237,14 +237,33 @@ function bindEvents() {
         });
     }
 
-    // 2. 菜单缩放
-    const sliderScale = document.getElementById('slider-ui-scale');
+    // 2. 菜单缩放 (修改为按钮控制)
+    const btnScaleUp = document.getElementById('btn-scale-up');
+    const btnScaleDown = document.getElementById('btn-scale-down');
     const scaleVal = document.getElementById('scale-val');
-    if (sliderScale && uiLayer) {
-        sliderScale.addEventListener('input', (e) => {
-            const val = e.target.value;
-            uiLayer.style.transform = `scale(${val})`;
-            if (scaleVal) scaleVal.innerText = Math.round(val * 100) + '%';
+    
+    let currentScale = 1.0;
+
+    const updateScale = () => {
+        if (uiLayer) uiLayer.style.transform = `scale(${currentScale})`;
+        if (scaleVal) scaleVal.innerText = Math.round(currentScale * 100) + '%';
+    };
+
+    if (btnScaleUp) {
+        btnScaleUp.addEventListener('click', () => {
+            if (currentScale < 1.5) {
+                currentScale += 0.1;
+                updateScale();
+            }
+        });
+    }
+
+    if (btnScaleDown) {
+        btnScaleDown.addEventListener('click', () => {
+            if (currentScale > 0.5) {
+                currentScale -= 0.1;
+                updateScale();
+            }
         });
     }
 
