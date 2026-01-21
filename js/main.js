@@ -238,6 +238,7 @@ function bindEvents() {
     }
 
     // 2. 菜单缩放 (修改为按钮控制)
+    // 修复：改用 zoom 而不是 transform: scale，因为 transform 在 OBS 中会导致点击坐标错位
     const btnScaleUp = document.getElementById('btn-scale-up');
     const btnScaleDown = document.getElementById('btn-scale-down');
     const scaleVal = document.getElementById('scale-val');
@@ -245,7 +246,8 @@ function bindEvents() {
     let currentScale = 1.0;
 
     const updateScale = () => {
-        if (uiLayer) uiLayer.style.transform = `scale(${currentScale})`;
+        // 使用 zoom 属性 (非标准但 Chrome/OBS 支持良好且不破坏点击坐标)
+        if (uiLayer) uiLayer.style.zoom = currentScale;
         if (scaleVal) scaleVal.innerText = Math.round(currentScale * 100) + '%';
     };
 
