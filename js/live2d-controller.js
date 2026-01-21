@@ -496,25 +496,38 @@ window.Live2DController = {
     setParam('ParamAngleZ', head.degrees.z, 1.0, true);
     
     // 身体旋转
-    // 优先使用 Pose 数据
+    // 优先使用 Pose 数据，但为了防止 Pose 数据微弱导致身体不动，
+    // 我们强制混合头部数据来驱动身体 (这在 VTuber 软件中很常见)
     let bodyX = 0, bodyY = 0, bodyZ = 0;
     
+    // 1. 获取基础 Pose 数据 (如果存在)
     if (riggedPose && riggedPose.Spine) {
         // Spine 输出是弧度，转换为角度
-        bodyX = riggedPose.Spine.y * 180 / Math.PI; // Yaw
-        bodyY = riggedPose.Spine.x * 180 / Math.PI; // Pitch
-        bodyZ = riggedPose.Spine.z * 180 / Math.PI; // Roll
-    } else {
-        // Fallback: 如果没有全身数据，使用头部数据带动身体
-        bodyX = head.degrees.y * 0.5;
-        bodyY = head.degrees.x * 0.5;
-        bodyZ = head.degrees.z * 0.5;
+        bodyX = riggedPose.Spine.y * 180 / Math.PI; // Yaw (左右转)
+        bodyY = riggedPose.Spine.x * 180 / Math.PI; // Pitch (前后俯仰)
+        bodyZ = riggedPose.Spine.z * 180 / Math.PI; // Roll (左右摆动)
     }
 
-    // 身体参数设置 (调整幅度)
-    setParam('ParamBodyAngleX', bodyX * 1.5, 1.0, true); // 0.5 -> 1.5 (增强响应)
-    setParam('ParamBodyAngleY', bodyY * 1.0, 1.0, true); // 0.5 -> 1.0
-    setParam('ParamBodyAngleZ', bodyZ * 1.0, 1.0, true); // 0.5 -> 1.0
+    // 2. 混合头部数据 (增强身体跟随感)
+    // 即使有 Pose 数据，头部大幅度动作也应该带动身体
+    // 如果 Pose 数据丢失 (例如只有头部被检测到)，则完全依赖头部数据
+    
+    // 混合权重: 如果有 Pose，Pose 占 40%，Head 占 60% (因为 Head 数据通常更稳定且幅度大)
+    // 如果没有 Pose，Head 占 100%
+    const hasPose = (riggedPose && riggedPose.Spine);
+    const poseWeight = hasPose ? 0.4 : 0.0;
+    const headWeight = hasPose ? 0.6 : 0.8; // 如果没有 Pose，稍微降低一点系数防止身体动得太夸张
+
+    bodyX = (bodyX * poseWeight) + (head.degrees.y * headWeight); 
+    bodyY = (bodyY * poseWeight) + (head.degrees.x * headWeight);
+    bodyZ = (bodyZ * poseWeight) + (head.degrees.z * headWeight);
+
+    // 3. 应用参数设置 (调整幅度)
+    // 身体参数通常需要较大的输入才能产生明显的动作
+    // 艾玛模型的 BodyAngleX/Z 响应可能需要增强
+    setParam('ParamBodyAngleX', bodyX * 2.0, 1.0, true); // 1.5 -> 2.0 (增强左右转响应)
+    setParam('ParamBodyAngleY', bodyY * 1.2, 1.0, true); // 1.0 -> 1.2
+    setParam('ParamBodyAngleZ', bodyZ * 1.5, 1.0, true); // 1.0 -> 1.5 (增强左右晃动响应)
     
     // 眼睛
     const clampEye = (val) => {
