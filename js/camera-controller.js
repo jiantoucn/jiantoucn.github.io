@@ -23,6 +23,9 @@ window.CameraController = {
     currentWidth: 1280,
     currentHeight: 720,
     currentComplexity: 1, // 默认降回 Full (1) 以平衡性能
+    currentFpsLimit: 0,   // 0 表示不限制
+    lastFrameTime: 0,
+    refineFace: true,     // 默认开启
 
     init: async function(videoId, canvasId, onResults) {
         this.videoElement = document.getElementById(videoId);
@@ -71,7 +74,7 @@ window.CameraController = {
             smoothLandmarks: true,
             enableSegmentation: false,
             smoothSegmentation: false,
-            refineFaceLandmarks: true,
+            refineFaceLandmarks: this.refineFace,
             minDetectionConfidence: 0.7,
             minTrackingConfidence: 0.7
         });
@@ -93,6 +96,16 @@ window.CameraController = {
 
         this.camera = new Camera(this.videoElement, {
             onFrame: async () => {
+                // FPS 限制逻辑
+                if (this.currentFpsLimit > 0) {
+                    const now = performance.now();
+                    const interval = 1000 / this.currentFpsLimit;
+                    if (now - this.lastFrameTime < interval) {
+                        return; // 跳过当前帧
+                    }
+                    this.lastFrameTime = now - ((now - this.lastFrameTime) % interval);
+                }
+                
                 await this.holistic.send({image: this.videoElement});
             },
             width: this.currentWidth,
@@ -130,6 +143,22 @@ window.CameraController = {
             // 更改模型复杂度可能需要重置一些状态，最好重启一下流
             // 但通常 setOptions 足够。为了保险起见，这里不重启摄像头，只更新 options
             console.log(`Model complexity updated to: ${complexity}`);
+        }
+    },
+
+    // 设置 FPS 限制
+    setFpsLimit: function(fps) {
+        this.currentFpsLimit = fps;
+        console.log(`FPS Limit set to: ${fps === 0 ? 'Unlimited' : fps}`);
+    },
+
+    // 设置是否精细面部
+    setRefineFace: function(enabled) {
+        if (this.refineFace === enabled) return;
+        this.refineFace = enabled;
+        if (this.holistic) {
+            this.updateHolisticOptions();
+            console.log(`Refine Face set to: ${enabled}`);
         }
     },
 

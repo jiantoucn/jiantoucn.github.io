@@ -306,6 +306,27 @@ function bindEvents() {
         });
     }
 
+    // 6. FPS 限制切换
+    const fpsLimitSelect = document.getElementById('cam-fps-limit');
+    if (fpsLimitSelect) {
+        fpsLimitSelect.addEventListener('change', (e) => {
+            const val = parseInt(e.target.value);
+            if (!isNaN(val) && window.CameraController) {
+                CameraController.setFpsLimit(val);
+            }
+        });
+    }
+
+    // 7. 精细面部追踪切换
+    const refineFaceCheck = document.getElementById('cam-refine');
+    if (refineFaceCheck) {
+        refineFaceCheck.addEventListener('change', (e) => {
+            if (window.CameraController) {
+                CameraController.setRefineFace(e.target.checked);
+            }
+        });
+    }
+
     // 3. 背景颜色切换
     const btnBgDefault = document.getElementById('btn-bg-default');
     const btnBgTransparent = document.getElementById('btn-bg-transparent');
