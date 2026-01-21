@@ -90,6 +90,8 @@
         
         #video-preview {
             width: 100%;
+            height: 100%;
+            object-fit: contain; /* 保持比例，避免拉伸 */
             border-radius: 4px;
             transform: scaleX(-1); /* 镜像翻转 */
             background: #000;
@@ -102,12 +104,13 @@
 
         #output-canvas {
             width: 100%;
-            border-radius: 4px;
-            transform: scaleX(-1);
+            height: 100%;
+            object-fit: contain; /* 确保 Canvas 也按同样比例缩放，与视频对齐 */
             position: absolute;
             top: 0;
             left: 0;
-            z-index: 2; /* 在视频之上 */
+            z-index: 2;
+            transform: scaleX(-1); /* Canvas 也需要镜像，否则骨骼会反向 */
             pointer-events: none; /* 让点击穿透 */
         }
 
@@ -281,7 +284,7 @@
     <!-- 提高 UI 层级，并强制 pointer-events 以确保 OBS 可交互 -->
     <!-- 移除 transition: transform，因为 transform 在 OBS 中会导致点击坐标映射错误 -->
     <div id="ui-layer" style="transform-origin: top left; transition: opacity 0.2s; z-index: 1000; pointer-events: auto;">
-        <h3 style="margin: 0; color: #3aa0ff;">网页摄像头 Live2D 面捕 (v1.36.2)</h3>
+        <h3 style="margin: 0; color: #3aa0ff;">网页摄像头 Live2D 面捕 (v1.36.3)</h3>
         
         <!-- 网络链接区域 -->
         <div style="margin-bottom: 10px;">
