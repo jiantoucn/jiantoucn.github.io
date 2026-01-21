@@ -136,7 +136,7 @@ function bindEvents() {
                     if (debugEl) debugEl.innerText = `数据处理错误: ${err.message}`;
                 }
             });
-            statusText.innerText = "摄像头正在运行 (v1.34.2)";
+            statusText.innerText = "摄像头正在运行 (v1.35.0)";
             document.getElementById('btn-camera').disabled = true;
             
             // 显示监控面板
