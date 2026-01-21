@@ -390,9 +390,9 @@ window.Live2DController = {
 
         // 参数别名映射表 (适配不规范模型)
         const PARAM_ALIASES = {
-            'ParamAngleX': ['ParamAngleX', 'PARAM_ANGLE_X', 'Param85'], // Param85: 艾玛
-            'ParamAngleY': ['ParamAngleY', 'PARAM_ANGLE_Y', 'Param86'], // Param86: 艾玛
-            'ParamAngleZ': ['ParamAngleZ', 'PARAM_ANGLE_Z', 'Param87'], // Param87: 艾玛
+            'ParamAngleX': ['ParamAngleX', 'PARAM_ANGLE_X'], // 移除 Param85，单独控制
+            'ParamAngleY': ['ParamAngleY', 'PARAM_ANGLE_Y'], // 移除 Param86
+            'ParamAngleZ': ['ParamAngleZ', 'PARAM_ANGLE_Z'], // 移除 Param87
             'ParamBodyAngleX': ['ParamBodyAngleX', 'PARAM_BODY_ANGLE_X', 'ParamBodyAngleX'],
             'ParamBodyAngleY': ['ParamBodyAngleY', 'PARAM_BODY_ANGLE_Y', 'ParamBodyAngleY'],
             'ParamBodyAngleZ': ['ParamBodyAngleZ', 'PARAM_BODY_ANGLE_Z', 'ParamBodyAngleZ'],
@@ -528,6 +528,15 @@ window.Live2DController = {
     setParam('ParamBodyAngleX', bodyX * 2.0, 1.0, true); // 1.5 -> 2.0 (增强左右转响应)
     setParam('ParamBodyAngleY', bodyY * 1.2, 1.0, true); // 1.0 -> 1.2
     setParam('ParamBodyAngleZ', bodyZ * 1.5, 1.0, true); // 1.0 -> 1.5 (增强左右晃动响应)
+
+    // [关键修复] 针对艾玛等使用物理系统驱动身体的模型
+    // Param85 -> Physics -> ParamBodyAngleX
+    // Param86 -> Physics -> ParamBodyAngleY
+    // Param87 -> Physics -> ParamBodyAngleZ
+    // 我们必须驱动这些"物理输入参数"，否则物理引擎会覆盖我们的直接设置
+    setParam('Param85', bodyX * 2.0, 1.0, true); 
+    setParam('Param86', bodyY * 1.2, 1.0, true);
+    setParam('Param87', bodyZ * 1.5, 1.0, true);
     
     // 眼睛
     const clampEye = (val) => {
