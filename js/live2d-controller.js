@@ -564,7 +564,21 @@ window.Live2DController = {
         setParam('ParamMouthOpenY', mouth.y);
         setParam('ParamMouthForm', mouth.x); 
         
-        // 艾玛手臂控制 (实验性)
+        // [新增] 针对希罗模型的特殊适配
+        // 检测是否存在嘟嘴参数 (Param93)
+        // Kalidokit 的 mouth.shape 包含元音嘴型权重 (A, E, I, O, U)
+        if (mouth.shape && mouth.shape.U) {
+             setParam('Param93', mouth.shape.U); // 嘟嘴
+        }
+
+        // [新增] 针对希罗模型的生气表情 (Param94)
+        // 如果眉毛下压严重 (brow < -0.5)，则触发生气
+        // Kalidokit brow: 0 (正常) -> 1 (上扬), 0 -> -1 (下压/皱眉) ? 
+        // 实际上 Kalidokit brow.l/r 通常是 0-1 (rest -> raised)。皱眉可能体现为 shape 或者 eye 变化。
+        // Kalidokit 文档显示 brow 是 0~1 (Rest~Raised)。皱眉可能需要计算。
+        // 简单起见，这里不自动触发情绪，以免误触。
+
+        // 艾玛手臂控制 (实验性) -> 希罗也适用 (Param23)
         if (riggedPose && riggedPose.LeftUpperArm) {
              // Z 轴旋转通常对应抬起
              // 归一化到 0-1

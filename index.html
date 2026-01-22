@@ -284,7 +284,7 @@
     <!-- 提高 UI 层级，并强制 pointer-events 以确保 OBS 可交互 -->
     <!-- 移除 transition: transform，因为 transform 在 OBS 中会导致点击坐标映射错误 -->
     <div id="ui-layer" style="transform-origin: top left; transition: opacity 0.2s; z-index: 1000; pointer-events: auto;">
-        <h3 style="margin: 0; color: #3aa0ff;">网页摄像头 Live2D 面捕 (v1.38.0)</h3>
+        <h3 style="margin: 0; color: #3aa0ff;">网页摄像头 Live2D 面捕 (v1.39.0)</h3>
         
         <!-- 网络链接区域 -->
         <div style="margin-bottom: 10px;">
@@ -293,7 +293,8 @@
                 <option value="models/kei_en/kei_basic_free/runtime/kei_basic_free.model3.json">Kei Basic (本地)</option>
                 <option value="models/kei_en/kei_vowels_pro/runtime/kei_vowels_pro.model3.json">Kei Vowels (本地)</option>
                 <option value="models/小海豹试用版/试用版(水印不可去除).model3.json">小海豹 (本地)</option>
-                <option value="models/艾玛/艾玛.model3.json" selected>艾玛 (本地)</option>
+                <option value="models/艾玛/艾玛.model3.json">艾玛 (本地)</option>
+                <option value="models/希罗/希罗.model3.json" selected>希罗 (本地)</option>
             </select>
             <input type="text" id="model-url" placeholder="输入 .model3.json 链接" value="models/艾玛/艾玛.model3.json">
             <button id="btn-load">🌐 加载模型</button>

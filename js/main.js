@@ -1,6 +1,11 @@
 // js/main.js
 
 document.addEventListener('DOMContentLoaded', () => {
+    const cameraStatus = document.getElementById('status-text');
+    if(cameraStatus) {
+        cameraStatus.innerText = "v1.39.0 - 摄像头未启动";
+    }
+
     // 1. 初始化 Live2D
     Live2DController.init('canvas');
 
@@ -136,7 +141,7 @@ function bindEvents() {
                     if (debugEl) debugEl.innerText = `数据处理错误: ${err.message}`;
                 }
             });
-            statusText.innerText = "摄像头正在运行 (v1.35.0)";
+            statusText.innerText = "摄像头正在运行 (v1.39.0)";
             document.getElementById('btn-camera').disabled = true;
             
             // 显示监控面板
