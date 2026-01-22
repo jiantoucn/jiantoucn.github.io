@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Live2D 面捕 - 采集端 (Sender) v2.0.11</title>
+    <title>Live2D 面捕 - 采集端 (Sender) v2.0.12</title>
     <meta name="theme-color" content="#202020">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -356,8 +356,13 @@
                 config: {
                     'iceServers': [
                         { url: 'stun:stun.l.google.com:19302' },
-                        { url: 'stun:stun1.l.google.com:19302' }
-                    ]
+                        { url: 'stun:stun1.l.google.com:19302' },
+                        { url: 'stun:stun2.l.google.com:19302' },
+                        { url: 'stun:stun3.l.google.com:19302' },
+                        { url: 'stun:stun4.l.google.com:19302' },
+                        { url: 'stun:stun.services.mozilla.com' }
+                    ],
+                    'sdpSemantics': 'unified-plan'
                 }
             });
 
@@ -385,7 +390,9 @@
             log(`正在连接到 ${targetId}...`);
             updateConnStatus('正在连接...', 'normal');
             
-            conn = peer.connect(targetId);
+            conn = peer.connect(targetId, {
+                reliable: true
+            });
 
             conn.on('open', () => {
                 log('✅ 连接成功！');

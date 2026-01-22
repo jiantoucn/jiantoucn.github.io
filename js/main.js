@@ -1,7 +1,7 @@
-// js/main.js - v2.0.11
+// js/main.js - v2.0.12
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("Main.js v2.0.11 loaded");
+    console.log("Main.js v2.0.12 loaded");
 
     // 强制检查 Service Worker 更新
     if ('serviceWorker' in navigator) {
@@ -397,8 +397,13 @@ document.addEventListener('DOMContentLoaded', () => {
             config: {
                 'iceServers': [
                     { url: 'stun:stun.l.google.com:19302' },
-                    { url: 'stun:stun1.l.google.com:19302' }
-                ]
+                    { url: 'stun:stun1.l.google.com:19302' },
+                    { url: 'stun:stun2.l.google.com:19302' },
+                    { url: 'stun:stun3.l.google.com:19302' },
+                    { url: 'stun:stun4.l.google.com:19302' },
+                    { url: 'stun:stun.services.mozilla.com' }
+                ],
+                'sdpSemantics': 'unified-plan'
             }
         });
 
