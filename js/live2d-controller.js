@@ -26,7 +26,11 @@ window.Live2DController = {
             view: document.getElementById(canvasId),
             autoStart: true,
             resizeTo: window,
-            backgroundColor: 0x202020
+            backgroundAlpha: 0, // 背景透明
+            powerPreference: 'high-performance', // 优先使用高性能 GPU
+            antialias: true,    // 开启抗锯齿
+            autoDensity: true,
+            resolution: window.devicePixelRatio || 1 // 适配高分屏
         });
 
         // 交互控制 (缩放 + 拖动)

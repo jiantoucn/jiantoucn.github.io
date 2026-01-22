@@ -24,14 +24,16 @@ window.CameraController = {
     currentHeight: 720,
     currentComplexity: 1, // 默认降回 Full (1) 以平衡性能
     currentFpsLimit: 0,   // 0 表示不限制
-    lastFrameTime:// 默认开启精细面部追踪
+    lastFrameTime: 0,
+
+    // 默认开启精细面部追踪
     refineFace: true,     // 默认开启
 
     init: async function(videoId, canvasId, onResults) {
         this.videoElement = document.getElementById(videoId);
         this.canvasElement = document.getElementById(canvasId);
-        // 优化：使用 alpha: false 提升 Canvas 性能
-        this.canvasCtx = this.canvasElement.getContext('2d', { alpha: false });
+        // 开启透明背景，只绘制骨骼，底层的 video 元素负责显示画面
+        this.canvasCtx = this.canvasElement.getContext('2d', { alpha: true });
         this.onResultsCallback = onResults;
 
         // 检测 Apple 设备
@@ -183,7 +185,7 @@ window.CameraController = {
             canvasCtx.save();
             try {
                 canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-                canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+                // canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height); // 不再重绘视频，节省性能
                 
                 // 只有在开启对应选项时才进行绘制操作，节省性能
                 const shouldDraw = window.drawConnectors && (this.drawConfig.showPose || this.drawConfig.showFace || this.drawConfig.showHands);
