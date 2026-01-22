@@ -1,4 +1,4 @@
-// js/camera-controller.js - v2.0.5
+// js/camera-controller.js - v2.0.6
 // 确保全局变量存在，防止重复定义或丢失
 if (typeof window.CameraController === 'undefined') {
     window.CameraController = {
@@ -101,13 +101,57 @@ if (typeof window.CameraController === 'undefined') {
             });
         },
 
+        // 停止摄像头
+        stop: async function() {
+            console.log("[CameraController] Stopping camera...");
+            
+            // 1. 停止 CameraUtils 实例
+            if (this.camera) {
+                if (typeof this.camera.stop === 'function') {
+                    await this.camera.stop();
+                }
+                this.camera = null;
+            }
+
+            // 2. 停止 MediaPipe Holistic 实例
+            if (this.holistic) {
+                try {
+                    this.holistic.close();
+                } catch(e) {
+                    console.warn("Error closing holistic:", e);
+                }
+                this.holistic = null;
+            }
+
+            // 3. 停止视频流轨道 (彻底释放硬件占用)
+            if (this.videoElement && this.videoElement.srcObject) {
+                const stream = this.videoElement.srcObject;
+                const tracks = stream.getTracks();
+                tracks.forEach(track => {
+                    track.stop();
+                    console.log(`[CameraController] Track stopped: ${track.kind}`);
+                });
+                this.videoElement.srcObject = null;
+            }
+
+            // 4. 清空画布
+            if (this.canvasCtx && this.canvasElement) {
+                this.canvasCtx.clearRect(0, 0, this.canvasElement.width, this.canvasElement.height);
+            }
+
+            // 5. 隐藏元素
+            if (this.videoElement) this.videoElement.style.display = "none";
+            if (this.canvasElement) this.canvasElement.style.display = "none";
+            const container = document.getElementById('video-container');
+            if (container) container.style.display = "none";
+
+            console.log("[CameraController] Camera stopped successfully.");
+            return true;
+        },
         // 独立启动摄像头方法，支持重启
         startCamera: async function() {
             if (this.camera) {
-                // 如果已有实例，先停止 (MediaPipe CameraUtils 没有直接的 stop 方法，但通常可以重新 new)
-                // 实际上 CameraUtils 内部封装了 requestAnimationFrame，重新 new 之前最好能停止之前的循环
-                // 但官方文档未提供显式 destroy，我们直接覆盖
-                // 如果有 stop 方法则调用
+                // 如果已有实例，先停止
                 if (typeof this.camera.stop === 'function') {
                     await this.camera.stop();
                 }

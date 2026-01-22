@@ -1,13 +1,16 @@
-// js/main.js - v2.0.5
+// js/main.js - v2.0.6
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("Main.js v2.0.5 loaded");
+    console.log("Main.js v2.0.6 loaded");
 
     // 强制检查 Service Worker 更新
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(registrations => {
             for(let registration of registrations) {
-                registration.update();
+                // 添加 catch 避免未捕获的 Promise 错误触发全局弹窗
+                registration.update().catch(err => {
+                    console.log('SW update check:', err.message);
+                });
             }
         });
     }
@@ -39,12 +42,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 默认不自动加载任何模型，等待用户选择
     // 但下拉菜单默认选中艾玛，方便用户直接点击加载
-    // setTimeout(() => {
-    //     const defaultModel = document.getElementById('model-select').value;
-    //     if (defaultModel) {
-    //         loadModelFromUrl(defaultModel);
-    //     }
-    // }, 500);
+    setTimeout(() => {
+        const defaultModel = document.getElementById('model-select').value;
+        if (defaultModel) {
+            loadModelFromUrl(defaultModel);
+        }
+    }, 500);
 
     // =========================================================================
     // UI 交互逻辑
@@ -132,9 +135,13 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // URL 加载
-    document.getElementById('btn-load-url').addEventListener('click', () => {
-        const url = document.getElementById('model-url').value.trim();
-        if (url) loadModelFromUrl(url);
+    document.getElementById('btn-load-selected').addEventListener('click', () => {
+        const url = document.getElementById('model-select').value;
+        if (url) {
+            loadModelFromUrl(url);
+        } else {
+            showToast('请先选择一个模型');
+        }
     });
 
     // ZIP 上传 (已移除)
@@ -175,7 +182,8 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             
             updateStatus('摄像头运行中', 'active');
-            els.btnCamera.innerText = '摄像头运行中';
+            els.btnCamera.innerText = '📷 启动';
+            els.btnCamera.disabled = false;
             
             // 显示监控面板
             els.monitorPanel.style.display = 'flex';
@@ -186,6 +194,17 @@ document.addEventListener('DOMContentLoaded', () => {
             updateStatus('摄像头启动失败', 'error');
             els.btnCamera.disabled = false;
             showToast('摄像头错误: ' + err.message);
+        }
+    });
+
+    // 关闭摄像头
+    document.getElementById('btn-close-camera').addEventListener('click', async () => {
+        if (window.CameraController) {
+            await CameraController.stop();
+            updateStatus('摄像头已关闭', 'normal');
+            els.monitorPanel.style.display = 'none';
+            uiState.monitorOpen = false;
+            showToast('摄像头已关闭');
         }
     });
 
@@ -270,24 +289,35 @@ document.addEventListener('DOMContentLoaded', () => {
         const face = data.face;
         if (face) {
             const deg = face.head.degrees;
-            html += `=== FACE ===\n`;
-            html += `Head Rot : X:${deg.x.toFixed(1)} Y:${deg.y.toFixed(1)} Z:${deg.z.toFixed(1)}\n`;
-            html += `Eye Open : L:${face.eye.l.toFixed(2)} R:${face.eye.r.toFixed(2)}\n`;
-            html += `Brow     : L:${face.brow ? face.brow.l.toFixed(2) : '-'} R:${face.brow ? face.brow.r.toFixed(2) : '-'}\n`;
-            html += `Mouth    : Open:${face.mouth.y.toFixed(2)} Shape:${face.mouth.shape ? getDominantVowel(face.mouth.shape) : '-'}\n`;
+            html += `=== FACE HEAD ===\n`;
+            html += `Rot X (Pitch) : ${deg.x.toFixed(1)}°\n`;
+            html += `Rot Y (Yaw)   : ${deg.y.toFixed(1)}°\n`;
+            html += `Rot Z (Roll)  : ${deg.z.toFixed(1)}°\n`;
+            html += `\n`;
+            
+            html += `=== FACE EYES ===\n`;
+            html += `Open Left     : ${face.eye.l.toFixed(2)}\n`;
+            html += `Open Right    : ${face.eye.r.toFixed(2)}\n`;
+            html += `Pupil X       : ${face.pupil ? face.pupil.x.toFixed(2) : '-'}\n`;
+            html += `Pupil Y       : ${face.pupil ? face.pupil.y.toFixed(2) : '-'}\n`;
+            html += `\n`;
+
+            html += `=== FACE MOUTH ===\n`;
+            html += `Open Y        : ${face.mouth.y.toFixed(2)}\n`;
+            html += `Form (Vowel)  : ${face.mouth.shape ? getDominantVowel(face.mouth.shape) : '-'}\n`;
+            html += `\n`;
         } else {
-            html += `=== FACE ===\nNot Detected\n`;
+            html += `=== FACE ===\nNot Detected\n\n`;
         }
-        html += `\n`;
 
         // --- Gesture Info ---
         const gesture = data.gesture;
-        html += `=== HAND GESTURE (Number) ===\n`;
+        html += `=== HAND GESTURE ===\n`;
         if (gesture) {
             const l = gesture.left !== null ? gesture.left : '-';
             const r = gesture.right !== null ? gesture.right : '-';
-            html += `Left Hand : ${l}\n`;
-            html += `Right Hand: ${r}\n`;
+            html += `Left Hand     : ${l}\n`;
+            html += `Right Hand    : ${r}\n`;
         } else {
              html += `No Gesture Data\n`;
         }
@@ -295,7 +325,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // --- Pose Info ---
         if (data.pose) {
-             html += `=== POSE ===\nDetected\n`;
+             html += `=== BODY POSE ===\n`;
+             // 简单的身体数据展示，例如肩膀位置
+             // Kalidokit pose result has slightly different structure, check raw landmarks if needed
+             // But data.pose is likely the rigged result
+             html += `Detected      : YES\n`;
+        } else {
+             html += `=== BODY POSE ===\nNot Detected\n`;
         }
 
         els.debugInfo.innerText = html;

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Live2D 面捕 Web (v2.0.5)</title>
+    <title>Live2D 面捕 Web (v2.0.6)</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#202020">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -412,7 +412,7 @@
         <!-- 侧边栏 -->
         <div class="sidebar" id="sidebar">
             <div class="sidebar-header" style="padding-left: 70px;"> <!-- 避开左上角按钮 -->
-                <h1>Live2D 面捕 <span style="font-size:12px; opacity:0.6; font-weight:normal;">v2.0.5</span></h1>
+                <h1>Live2D 面捕 <span style="font-size:12px; opacity:0.6; font-weight:normal;">v2.0.6</span></h1>
             </div>
             
             <div class="sidebar-content">
@@ -428,9 +428,13 @@
                         <option value="models/小海豹试用版/试用版(水印不可去除).model3.json">小海豹</option>
                     </select>
                     
-                    <div style="display: flex; gap: 5px;">
+                    <div style="display: none;">
                         <input type="text" id="model-url" placeholder="URL (.model3.json)" style="margin-bottom:0;">
                         <button id="btn-load-url" style="width: auto; margin-bottom:0;">加载</button>
+                    </div>
+                    
+                    <div style="display: flex; gap: 5px;">
+                        <button id="btn-load-selected" class="primary" style="margin-bottom:0;">加载选中模型</button>
                     </div>
                     
                     <div class="progress-container" id="load-progress">
@@ -441,7 +445,10 @@
                 <!-- 摄像头设置 -->
                 <div class="control-group">
                     <div class="control-group-title">面捕设置</div>
-                    <button id="btn-camera" class="primary">📷 启动摄像头</button>
+                    <div style="display:flex; gap:5px;">
+                        <button id="btn-camera" class="primary">📷 启动</button>
+                        <button id="btn-close-camera" style="background:#e74c3c; color:white;">🚫 关闭</button>
+                    </div>
                     
                     <div class="status-bar">
                         <div class="status-dot" id="status-dot"></div>
