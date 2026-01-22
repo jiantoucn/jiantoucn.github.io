@@ -379,7 +379,7 @@
     <canvas id="canvas"></canvas>
 
     <!-- 悬浮控制按钮 -->
-    <div class="float-btn" id="toggle-sidebar-btn" title="切换菜单">
+    <div class="float-btn" id="toggle-sidebar-btn" title="切换菜单" style="top: 20px; left: 20px; z-index: 1001;">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="3" y1="12" x2="21" y2="12"></line>
             <line x1="3" y1="6" x2="21" y2="6"></line>
@@ -392,8 +392,8 @@
         
         <!-- 侧边栏 -->
         <div class="sidebar" id="sidebar">
-            <div class="sidebar-header">
-                <h1>Live2D 面捕 <span style="font-size:12px; opacity:0.6; font-weight:normal;">v2.0.0</span></h1>
+            <div class="sidebar-header" style="padding-left: 70px;"> <!-- 避开左上角按钮 -->
+                <h1>Live2D 面捕 <span style="font-size:12px; opacity:0.6; font-weight:normal;">v2.0.1</span></h1>
             </div>
             
             <div class="sidebar-content">
@@ -402,9 +402,9 @@
                 <div class="control-group">
                     <div class="control-group-title">模型管理</div>
                     <select id="model-select">
-                        <option value="" disabled selected>-- 选择模型 --</option>
-                        <option value="models/希罗/希罗.model3.json" selected>希罗 (默认)</option>
-                        <option value="models/艾玛/艾玛.model3.json">艾玛</option>
+                        <option value="" disabled>-- 选择模型 --</option>
+                        <option value="models/艾玛/艾玛.model3.json" selected>艾玛 (默认)</option>
+                        <option value="models/希罗/希罗.model3.json">希罗</option>
                         <option value="models/kei_en/kei_vowels_pro/runtime/kei_vowels_pro.model3.json">Kei Vowels</option>
                         <option value="models/小海豹试用版/试用版(水印不可去除).model3.json">小海豹</option>
                     </select>
@@ -412,10 +412,6 @@
                     <div style="display: flex; gap: 5px;">
                         <input type="text" id="model-url" placeholder="URL (.model3.json)" style="margin-bottom:0;">
                         <button id="btn-load-url" style="width: auto; margin-bottom:0;">加载</button>
-                    </div>
-                    <div style="margin-top: 8px;">
-                        <input type="file" id="file-upload" accept=".zip" style="display: none;">
-                        <button onclick="document.getElementById('file-upload').click()">📂 上传本地模型 (ZIP)</button>
                     </div>
                     
                     <div class="progress-container" id="load-progress">

@@ -1,4 +1,4 @@
-// js/main.js - v2.0.0
+// js/main.js - v2.0.1
 
 document.addEventListener('DOMContentLoaded', () => {
     // UI 状态
@@ -28,13 +28,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // 初始化 Live2D
     Live2DController.init('canvas');
 
-    // 默认加载希罗模型
-    setTimeout(() => {
-        const defaultModel = document.getElementById('model-select').value;
-        if (defaultModel) {
-            loadModelFromUrl(defaultModel);
-        }
-    }, 500);
+    // 默认不自动加载任何模型，等待用户选择
+    // 但下拉菜单默认选中艾玛，方便用户直接点击加载
+    // setTimeout(() => {
+    //     const defaultModel = document.getElementById('model-select').value;
+    //     if (defaultModel) {
+    //         loadModelFromUrl(defaultModel);
+    //     }
+    // }, 500);
 
     // =========================================================================
     // UI 交互逻辑
@@ -51,16 +52,18 @@ document.addEventListener('DOMContentLoaded', () => {
         uiState.uiHidden = true;
         els.uiContainer.classList.add('hidden');
         els.toggleSidebarBtn.style.opacity = '0';
+        els.toggleSidebarBtn.style.pointerEvents = 'none'; // 防止隐藏后还能点击
         
         showToast('UI 已隐藏，双击屏幕任意位置恢复');
     });
 
-    // 双击恢复 UI
-    document.addEventListener('dblclick', (e) => {
+    // 双击恢复 UI (绑定到 window 以确保捕获)
+    window.addEventListener('dblclick', (e) => {
         if (uiState.uiHidden) {
             uiState.uiHidden = false;
             els.uiContainer.classList.remove('hidden');
             els.toggleSidebarBtn.style.opacity = '1';
+            els.toggleSidebarBtn.style.pointerEvents = 'auto';
             showToast('UI 已显示');
         }
     });
@@ -125,8 +128,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (url) loadModelFromUrl(url);
     });
 
-    // ZIP 上传
-    document.getElementById('file-upload').addEventListener('change', handleZipUpload);
+    // ZIP 上传 (已移除)
+    // document.getElementById('file-upload').addEventListener('change', handleZipUpload);
 
     async function loadModelFromUrl(url) {
         showLoading(true);
