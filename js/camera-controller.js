@@ -1,4 +1,4 @@
-// js/camera-controller.js - v2.0.13
+// js/camera-controller.js - v2.0.14
 // 确保全局变量存在，防止重复定义或丢失
 if (typeof window.CameraController === 'undefined') {
     window.CameraController = {
