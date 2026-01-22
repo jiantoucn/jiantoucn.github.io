@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Live2D 面捕 - 采集端 (Sender) v2.0.12</title>
+    <title>Live2D 面捕 - 采集端 (Sender) v2.0.13</title>
     <meta name="theme-color" content="#202020">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -391,7 +391,8 @@
             updateConnStatus('正在连接...', 'normal');
             
             conn = peer.connect(targetId, {
-                reliable: true
+                reliable: true,
+                serialization: 'json'
             });
 
             conn.on('open', () => {

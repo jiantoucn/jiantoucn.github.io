@@ -1,7 +1,7 @@
-// js/main.js - v2.0.12
+// js/main.js - v2.0.13
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("Main.js v2.0.12 loaded");
+    console.log("Main.js v2.0.13 loaded");
 
     // 强制检查 Service Worker 更新
     if ('serviceWorker' in navigator) {
@@ -404,7 +404,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     { url: 'stun:stun.services.mozilla.com' }
                 ],
                 'sdpSemantics': 'unified-plan'
-            }
+            },
+            serialization: 'json'
         });
 
         peer.on('open', (id) => {
