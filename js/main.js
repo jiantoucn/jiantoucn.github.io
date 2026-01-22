@@ -1,7 +1,16 @@
-// js/main.js - v2.0.2
+// js/main.js - v2.0.3
 
 document.addEventListener('DOMContentLoaded', () => {
-    // UI 状态
+    console.log("Main.js v2.0.3 loaded");
+
+    // 强制检查 Service Worker 更新
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(registrations => {
+            for(let registration of registrations) {
+                registration.update();
+            }
+        });
+    }
     const uiState = {
         sidebarOpen: true,
         monitorOpen: false,

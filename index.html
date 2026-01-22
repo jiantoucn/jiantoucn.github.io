@@ -13,6 +13,25 @@
     <link rel="preconnect" href="https://cdn.jsdelivr.net">
     <link rel="preconnect" href="https://cdnjs.cloudflare.com">
     
+    <!-- 错误监控 (放在最前) -->
+    <script>
+        window.onerror = function(msg, url, line, col, error) {
+            var toast = document.createElement('div');
+            toast.style.cssText = 'position:fixed;top:10px;left:10px;right:10px;background:rgba(200,0,0,0.9);color:white;padding:10px;z-index:9999;font-size:12px;border-radius:4px;word-break:break-all;';
+            toast.innerHTML = '【错误】' + msg + '<br>位置: ' + (url ? url.split('/').pop() : 'unknown') + ':' + line;
+            document.body.appendChild(toast);
+            console.error('Global Error:', error);
+            return false;
+        };
+        // 捕获未处理的 Promise 拒绝
+        window.addEventListener('unhandledrejection', function(event) {
+            var toast = document.createElement('div');
+            toast.style.cssText = 'position:fixed;top:50px;left:10px;right:10px;background:rgba(200,100,0,0.9);color:white;padding:10px;z-index:9999;font-size:12px;border-radius:4px;word-break:break-all;';
+            toast.innerHTML = '【Promise错误】' + event.reason;
+            document.body.appendChild(toast);
+        });
+    </script>
+
     <!-- 预加载核心资源 -->
     <link rel="preload" href="models/希罗/希罗.model3.json" as="fetch" crossorigin="anonymous">
     <link rel="preload" href="models/希罗/希罗.moc3" as="fetch" crossorigin="anonymous">
@@ -510,9 +529,9 @@
     <script defer src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
 
     <!-- 业务逻辑 -->
-    <script src="js/live2d-controller.js"></script>
-    <script src="js/camera-controller.js"></script>
-    <script src="js/main.js"></script>
+    <script defer src="js/live2d-controller.js"></script>
+    <script defer src="js/camera-controller.js"></script>
+    <script defer src="js/main.js"></script>
     <script src="sw.js"></script>
 
     <script>
