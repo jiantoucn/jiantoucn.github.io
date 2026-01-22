@@ -27,6 +27,10 @@ window.CameraController = {
     lastFrameTime: 0,
     refineFace: true,     // 默认开启
 
+    // 口罩检测状态
+    maskCheckCounter: 0,
+    isMaskDetected: false,
+
     init: async function(videoId, canvasId, onResults) {
         this.videoElement = document.getElementById(videoId);
         this.canvasElement = document.getElementById(canvasId);
@@ -262,6 +266,12 @@ window.CameraController = {
                     } catch(e) { console.warn("Gesture detect error", e); }
                 }
 
+                // 口罩检测 (每30帧检测一次)
+                if (results.faceLandmarks && ++this.maskCheckCounter > 30) {
+                    this.maskCheckCounter = 0;
+                    this.isMaskDetected = this.detectMask(results.faceLandmarks, canvasCtx, canvasElement.width, canvasElement.height);
+                }
+
                 if (this.onResultsCallback) {
                     this.onResultsCallback({
                         face: faceRig,
@@ -269,6 +279,7 @@ window.CameraController = {
                         leftHand: leftHandRig,
                         rightHand: rightHandRig,
                         gesture: { left: leftGesture, right: rightGesture },
+                        isMask: this.isMaskDetected,
                         fps: this.fps,
                         raw: {
                             faceLandmarks: results.faceLandmarks,
@@ -281,6 +292,76 @@ window.CameraController = {
             }
         } catch (err) {
             console.error("Critical error in handleResults:", err);
+            if (this.canvasCtx) { try { this.canvasCtx.restore(); } catch(e) {} }
+        }
+    },
+
+    // 简易口罩检测算法 (基于色彩差异)
+    detectMask: function(faceLandmarks, ctx, width, height) {
+        try {
+            // 采样点索引 (MediaPipe Face Mesh)
+            // 1: 鼻尖, 152: 下巴底端, 234: 左脸颊, 454: 右脸颊, 13: 上唇, 14: 下唇
+            
+            const getPointColor = (index) => {
+                const point = faceLandmarks[index];
+                if (!point) return null;
+                // 限制坐标在 Canvas 范围内
+                const x = Math.min(Math.max(Math.floor(point.x * width), 0), width - 1);
+                const y = Math.min(Math.max(Math.floor(point.y * height), 0), height - 1);
+                
+                // 获取 3x3 区域的平均色
+                const imageData = ctx.getImageData(Math.max(0, x - 1), Math.max(0, y - 1), 3, 3);
+                const data = imageData.data;
+                let r = 0, g = 0, b = 0;
+                const count = data.length / 4;
+                for (let i = 0; i < data.length; i += 4) {
+                    r += data[i];
+                    g += data[i+1];
+                    b += data[i+2];
+                }
+                return { r: r/count, g: g/count, b: b/count };
+            };
+
+            const colorDiff = (c1, c2) => {
+                if (!c1 || !c2) return 0;
+                return Math.sqrt(
+                    Math.pow(c1.r - c2.r, 2) + 
+                    Math.pow(c1.g - c2.g, 2) + 
+                    Math.pow(c1.b - c2.b, 2)
+                );
+            };
+
+            // 采样
+            const noseColor = getPointColor(1);       // 鼻尖
+            const cheekLColor = getPointColor(234);   // 左脸
+            const cheekRColor = getPointColor(454);   // 右脸
+            const chinColor = getPointColor(152);     // 下巴
+            const lipColor = getPointColor(13);       // 上唇
+
+            if (!noseColor || !chinColor || !cheekLColor) return false;
+
+            // 计算基准肤色 (脸颊 + 鼻尖)
+            const skinColor = {
+                r: (noseColor.r + cheekLColor.r + cheekRColor.r) / 3,
+                g: (noseColor.g + cheekLColor.g + cheekRColor.g) / 3,
+                b: (noseColor.b + cheekLColor.b + cheekRColor.b) / 3
+            };
+
+            // 计算嘴巴区域颜色 (下巴 + 嘴唇)
+            const mouthAreaColor = {
+                r: (chinColor.r + lipColor.r) / 2,
+                g: (chinColor.g + lipColor.g) / 2,
+                b: (chinColor.b + lipColor.b) / 2
+            };
+
+            // 计算差异
+            const diff = colorDiff(skinColor, mouthAreaColor);
+            
+            return diff > 45;
+
+        } catch (e) {
+            console.warn("Mask detection failed:", e);
+            return false;
         }
     },
 
