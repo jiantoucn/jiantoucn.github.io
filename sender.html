@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Live2D 面捕 - 采集端 (Sender) v2.0.10</title>
+    <title>Live2D 面捕 - 采集端 (Sender) v2.0.11</title>
     <meta name="theme-color" content="#202020">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -504,6 +504,27 @@
         window.addEventListener('beforeunload', () => {
             if (conn) conn.close();
             CameraController.stop();
+        });
+
+        // 刷新按钮逻辑
+        document.getElementById('btn-refresh').addEventListener('click', () => {
+            showToast('正在清理缓存并刷新...');
+            // 清理 Service Worker
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(registrations => {
+                    for (let registration of registrations) registration.unregister();
+                });
+            }
+            // 清理 Cache Storage
+            if ('caches' in window) {
+                caches.keys().then(names => {
+                    for (let name of names) caches.delete(name);
+                });
+            }
+            // 延迟刷新
+            setTimeout(() => {
+                window.location.reload(true);
+            }, 500);
         });
 
     </script>

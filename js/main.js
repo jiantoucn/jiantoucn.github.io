@@ -1,7 +1,7 @@
-// js/main.js - v2.0.10
+// js/main.js - v2.0.11
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("Main.js v2.0.10 loaded");
+    console.log("Main.js v2.0.11 loaded");
 
     // 强制检查 Service Worker 更新
     if ('serviceWorker' in navigator) {
@@ -104,19 +104,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 5. 刷新按钮
     document.getElementById('btn-refresh').addEventListener('click', () => {
-        if (confirm('确定要清除缓存并刷新吗？')) {
-            if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.getRegistrations().then(registrations => {
-                    for (let registration of registrations) registration.unregister();
-                });
-            }
-            if ('caches' in window) {
-                caches.keys().then(names => {
-                    for (let name of names) caches.delete(name);
-                });
-            }
-            window.location.reload(true);
+        showToast('正在清理缓存并刷新...');
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(registrations => {
+                for (let registration of registrations) registration.unregister();
+            });
         }
+        if ('caches' in window) {
+            caches.keys().then(names => {
+                for (let name of names) caches.delete(name);
+            });
+        }
+        setTimeout(() => {
+            window.location.reload(true);
+        }, 500);
     });
 
     // 6. 跳转发送端
