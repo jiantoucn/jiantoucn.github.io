@@ -3,7 +3,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     const cameraStatus = document.getElementById('status-text');
     if(cameraStatus) {
-        cameraStatus.innerText = "v1.39.3 - 摄像头未启动";
+        cameraStatus.innerText = "v1.39.4 - 摄像头未启动";
     }
 
     // 1. 初始化 Live2D
@@ -156,19 +156,6 @@ function bindEvents() {
         try {
             await CameraController.init('video-preview', 'output-canvas', (riggedFace) => {
                 try {
-                    // 更新口罩状态提示
-                    if (riggedFace && riggedFace.isMask !== undefined) {
-                        const baseText = "摄像头正在运行 (v1.39.3)";
-                        const currentText = statusText.innerText;
-                        const hasMask = currentText.includes("😷");
-                        
-                        if (riggedFace.isMask && !hasMask) {
-                            statusText.innerText = baseText + " - 😷 检测到口罩";
-                        } else if (!riggedFace.isMask && hasMask) {
-                            statusText.innerText = baseText;
-                        }
-                    }
-
                     Live2DController.update(riggedFace);
                     updateDebugUI(riggedFace);
                 } catch (err) {
@@ -177,7 +164,7 @@ function bindEvents() {
                     if (debugEl) debugEl.innerText = `数据处理错误: ${err.message}`;
                 }
             });
-            statusText.innerText = "摄像头正在运行 (v1.39.3)";
+            statusText.innerText = "摄像头正在运行 (v1.39.4)";
             document.getElementById('btn-camera').disabled = true;
             
             // 显示监控面板
