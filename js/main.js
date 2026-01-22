@@ -1,7 +1,7 @@
-// js/main.js - v2.0.3
+// js/main.js - v2.0.5
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("Main.js v2.0.3 loaded");
+    console.log("Main.js v2.0.5 loaded");
 
     // 强制检查 Service Worker 更新
     if ('serviceWorker' in navigator) {
@@ -198,6 +198,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // 模型精度切换
+    document.getElementById('cam-complexity').addEventListener('change', (e) => {
+        if (window.CameraController) {
+            const complexity = parseInt(e.target.value);
+            CameraController.setModelComplexity(complexity);
+            const text = ['Lite (极速)', 'Full (标准)', 'Heavy (高精)'][complexity];
+            showToast(`模型精度已切换至: ${text}`);
+        }
+    });
+
     // FPS 限制
     document.getElementById('cam-fps-limit').addEventListener('change', (e) => {
         if (window.CameraController) {
@@ -255,22 +265,52 @@ document.addEventListener('DOMContentLoaded', () => {
         if (els.monitorContent.style.display === 'none') return;
 
         let html = '';
+        
+        // --- Face Info ---
         const face = data.face;
-        
         if (face) {
-            const h = face.head.degrees;
-            html += `[HEAD] X:${h.x.toFixed(1)} Y:${h.y.toFixed(1)} Z:${h.z.toFixed(1)}\n`;
-            html += `[EYE] L:${face.eye.l.toFixed(2)} R:${face.eye.r.toFixed(2)}\n`;
-            html += `[MOUTH] ${face.mouth.y.toFixed(2)}\n`;
+            const deg = face.head.degrees;
+            html += `=== FACE ===\n`;
+            html += `Head Rot : X:${deg.x.toFixed(1)} Y:${deg.y.toFixed(1)} Z:${deg.z.toFixed(1)}\n`;
+            html += `Eye Open : L:${face.eye.l.toFixed(2)} R:${face.eye.r.toFixed(2)}\n`;
+            html += `Brow     : L:${face.brow ? face.brow.l.toFixed(2) : '-'} R:${face.brow ? face.brow.r.toFixed(2) : '-'}\n`;
+            html += `Mouth    : Open:${face.mouth.y.toFixed(2)} Shape:${face.mouth.shape ? getDominantVowel(face.mouth.shape) : '-'}\n`;
         } else {
-            html += `[FACE] Not Detected\n`;
+            html += `=== FACE ===\nNot Detected\n`;
         }
-        
+        html += `\n`;
+
+        // --- Gesture Info ---
+        const gesture = data.gesture;
+        html += `=== HAND GESTURE (Number) ===\n`;
+        if (gesture) {
+            const l = gesture.left !== null ? gesture.left : '-';
+            const r = gesture.right !== null ? gesture.right : '-';
+            html += `Left Hand : ${l}\n`;
+            html += `Right Hand: ${r}\n`;
+        } else {
+             html += `No Gesture Data\n`;
+        }
+        html += `\n`;
+
+        // --- Pose Info ---
         if (data.pose) {
-            html += `[POSE] Active\n`;
+             html += `=== POSE ===\nDetected\n`;
         }
-        
+
         els.debugInfo.innerText = html;
+    }
+
+    function getDominantVowel(shape) {
+        let max = 0;
+        let vowel = '-';
+        for (const [k, v] of Object.entries(shape)) {
+            if (v > max) {
+                max = v;
+                vowel = k;
+            }
+        }
+        return vowel;
     }
 
     // 窗口缩放

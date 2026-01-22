@@ -1,4 +1,4 @@
-// js/camera-controller.js - v2.0.3
+// js/camera-controller.js - v2.0.5
 // 确保全局变量存在，防止重复定义或丢失
 if (typeof window.CameraController === 'undefined') {
     window.CameraController = {
@@ -320,81 +320,102 @@ if (typeof window.CameraController === 'undefined') {
             try {
                 // 辅助函数：计算距离平方
                 const getDistSq = (p1, p2) => (p1.x - p2.x)**2 + (p1.y - p2.y)**2;
+                const getDist = (p1, p2) => Math.sqrt(getDistSq(p1, p2));
 
-                // 辅助函数：判断手指是否张开 (指尖距离手腕 比 指根距离手腕 远)
-                const isFingerOpen = (tipIdx, pipIdx) => {
-                     const wrist = landmarks[0];
-                     const tip = landmarks[tipIdx];
-                     const pip = landmarks[pipIdx];
-                     if (!wrist || !tip || !pip) return false;
-                     
-                     const dTip = getDistSq(tip, wrist);
-                     const dPip = getDistSq(pip, wrist);
-                     return dTip > dPip;
-                };
-                
-                // 辅助函数：拇指判断 (使用小指根部作为参考点，避免手掌旋转导致的误判)
-                const isThumbOpen = () => {
-                     const tip = landmarks[4];
-                     const ip = landmarks[3];
-                     const ref = landmarks[17]; // Pinky MCP
-                     if (!tip || !ip || !ref) return false;
-
-                     const dTip = getDistSq(tip, ref);
-                     const dIp = getDistSq(ip, ref);
-                     return dTip > dIp;
-                };
-
-                const thumb = isThumbOpen();
-                const index = isFingerOpen(8, 6);
-                const middle = isFingerOpen(12, 10);
-                const ring = isFingerOpen(16, 14);
-                const pinky = isFingerOpen(20, 18);
-
-                // 关键点坐标
+                // 关键点
+                const wrist = landmarks[0];
                 const thumbTip = landmarks[4];
                 const indexTip = landmarks[8];
                 const middleTip = landmarks[12];
+                const ringTip = landmarks[16];
+                const pinkyTip = landmarks[20];
+                
+                const indexMCP = landmarks[5];
+                
+                // 计算手掌大小基准 (手腕到食指指根的距离)
+                const handSize = getDist(wrist, indexMCP);
+                
+                // 动态阈值
+                const FINGER_OPEN_THRESHOLD = handSize * 1.6; // 指尖到手腕距离 > 1.6倍手掌基准 (展开)
+                const THUMB_OPEN_THRESHOLD = handSize * 0.8;  // 拇指尖到小指指根距离 (展开)
+                
+                // 辅助函数：判断手指是否张开
+                // 优化：结合 指尖-手腕距离 和 指尖-指根距离
+                const isFingerOpen = (tipIdx, mcpIdx) => {
+                     const tip = landmarks[tipIdx];
+                     const mcp = landmarks[mcpIdx];
+                     
+                     // 1. 指尖距离手腕 必须足够远
+                     const dTipWrist = getDist(tip, wrist);
+                     const dMcpWrist = getDist(mcp, wrist); // 其实就是 handSize 附近
+                     
+                     // 2. 指尖距离指根 必须足够远 (避免握拳时指尖虽然远但弯曲)
+                     const dTipMcp = getDist(tip, mcp);
+
+                     // 简单的判断标准：指尖到手腕距离 > 指根到手腕距离 * 1.2
+                     // 且 指尖到指根距离 > 手掌基准 * 0.8 (确保手指伸直)
+                     return dTipWrist > dMcpWrist * 1.2 && dTipMcp > handSize * 0.8;
+                };
+                
+                // 辅助函数：拇指判断
+                // 优化：检查拇指尖是否远离食指掌骨 (Keypoint 5) 且远离小指掌骨 (Keypoint 17)
+                const isThumbOpen = () => {
+                     const tip = landmarks[4];
+                     const pinkyMCP = landmarks[17];
+                     const indexMCP = landmarks[5];
+                     
+                     const dTipPinky = getDist(tip, pinkyMCP);
+                     const dTipIndex = getDist(tip, indexMCP);
+                     
+                     // 拇指张开时，通常远离小指根部，也远离食指根部
+                     return dTipPinky > handSize * 0.9 && dTipIndex > handSize * 0.5;
+                };
+
+                const thumb = isThumbOpen();
+                const index = isFingerOpen(8, 5);
+                const middle = isFingerOpen(12, 9);
+                const ring = isFingerOpen(16, 13);
+                const pinky = isFingerOpen(20, 17);
 
                 // ------------------------------------------------
                 // 特殊手势判断 (优先级高于计数)
                 // ------------------------------------------------
 
                 // 7: 捏合 (拇指 + 食指 + 中指 聚拢)
-                // 中国手势 7: 拇指、食指、中指指尖捏在一起
+                // 优化：使用动态阈值，不强制要求无名指/小指完全关闭，只要它们不干扰
+                // 但为了准确，还是要求 ring/pinky 关闭
                 if (!ring && !pinky) {
-                    const dThumbIndex = getDistSq(thumbTip, indexTip);
-                    const dThumbMiddle = getDistSq(thumbTip, middleTip);
-                    const pinchThreshold = 0.005; // 阈值需调试 (0.07^2 ≈ 0.005)
+                    const dThumbIndex = getDist(thumbTip, indexTip);
+                    const dThumbMiddle = getDist(thumbTip, middleTip);
+                    
+                    // 阈值：指尖距离小于手掌大小的 35%
+                    const pinchThreshold = handSize * 0.35;
 
+                    // 拇指接触食指和中指
                     if (dThumbIndex < pinchThreshold && dThumbMiddle < pinchThreshold) {
                         return 7;
                     }
+                    
+                    // 变种 7: 仅拇指和食指捏合，且中指是直的？(不太常见)
+                    // 常见 7: 拇指+食指+中指 撮在一起
                 }
 
-                // 9: 勾指 (食指弯曲，其他关闭)
-                // 中国手势 9: 食指成钩状
-                if (!middle && !ring && !pinky && !thumb) {
-                    // 判断食指是否弯曲 (Hook)
-                    // 计算向量夹角: PIP->MCP (6->5) 和 PIP->TIP (6->8)
-                    const p5 = landmarks[5]; // Index MCP
-                    const p6 = landmarks[6]; // Index PIP
-                    const p8 = landmarks[8]; // Index Tip
-
-                    const v1 = {x: p5.x - p6.x, y: p5.y - p6.y};
-                    const v2 = {x: p8.x - p6.x, y: p8.y - p6.y};
+                // 9: 勾指 (食指弯曲成钩，其他关闭)
+                // 优化：不依赖角度，依赖几何形态
+                if (!thumb && !middle && !ring && !pinky) {
+                    // 食指必须是“半开半闭”
+                    // 1. 指尖距离手腕 比 握拳时 远
+                    // 2. 指尖距离手腕 比 伸直时 近
                     
-                    const mag1 = Math.sqrt(v1.x**2 + v1.y**2);
-                    const mag2 = Math.sqrt(v2.x**2 + v2.y**2);
-
-                    if (mag1 * mag2 > 0) {
-                        const dot = v1.x * v2.x + v1.y * v2.y;
-                        const cosTheta = dot / (mag1 * mag2);
-                        
-                        // cosTheta: -1(直) -> 0(90度) -> 1(折叠)
-                        // 弯曲判断: 大于 -0.85 (约150度) 且 小于 0.5 (避免完全折叠成拳头)
-                        // 同时食指不能完全缩回去 (index 可能是 true 或 false，取决于弯曲程度)
-                        if (cosTheta > -0.85 && cosTheta < 0.5) {
+                    const dIndexTipWrist = getDist(indexTip, wrist);
+                    const dIndexMcpWrist = getDist(indexMCP, wrist); // ~ handSize
+                    
+                    // 弯曲判断：指尖到手腕距离 在 (1.0 ~ 1.5) 倍手掌基准之间
+                    // 伸直通常 > 1.6，握拳通常 < 1.0
+                    if (dIndexTipWrist > dIndexMcpWrist * 1.0 && dIndexTipWrist < dIndexMcpWrist * 1.6) {
+                        // 再次确认是弯曲：指尖到指根的距离 < 伸直时的距离 (约 0.9 * handSize)
+                        const dTipMcp = getDist(indexTip, indexMCP);
+                        if (dTipMcp < handSize * 0.8) {
                             return 9;
                         }
                     }
@@ -403,7 +424,7 @@ if (typeof window.CameraController === 'undefined') {
                 // 6: 拇指+小指 (其他关闭)
                 if (thumb && pinky && !index && !middle && !ring) return 6;
                 
-                // 8: 拇指+食指 (其他关闭) - 中国手势 8
+                // 8: 拇指+食指 (其他关闭)
                 if (thumb && index && !middle && !ring && !pinky) return 8;
 
                 // ------------------------------------------------
@@ -415,6 +436,15 @@ if (typeof window.CameraController === 'undefined') {
                 if (middle) count++;
                 if (ring) count++;
                 if (pinky) count++;
+                
+                // 0 的优化：如果 count 计算为 0，再次确认手指是否真的蜷缩
+                // 上面的 isFingerOpen 已经比较严格，所以这里通常没问题
+                // 但为了防止误判，可以增加一个 "Fist Check"
+                if (count === 0) {
+                    // 确保指尖都靠近手掌中心或指根
+                    // 这里直接返回 0 即可，因为 isFingerOpen 已经过滤了
+                    return 0;
+                }
                 
                 return count;
             } catch (e) {
