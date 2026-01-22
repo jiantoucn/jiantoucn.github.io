@@ -1,4 +1,4 @@
-// js/main.js - v2.0.1
+// js/main.js - v2.0.2
 
 document.addEventListener('DOMContentLoaded', () => {
     // UI 状态
@@ -273,16 +273,33 @@ document.addEventListener('DOMContentLoaded', () => {
     initPeerJS();
 });
 
-// PeerJS 初始化
+// PeerJS 初始化 (恢复短 ID 逻辑)
 function initPeerJS() {
     if (!window.Peer) return;
-    const peer = new Peer();
+
+    // 生成随机短 ID (例如: PC-1234)
+    const randomId = 'PC-' + Math.floor(Math.random() * 9000 + 1000);
+
+    const peer = new Peer(randomId, {
+        debug: 1,
+        config: {
+            'iceServers': [
+                { url: 'stun:stun.l.google.com:19302' },
+                { url: 'stun:stun1.l.google.com:19302' }
+            ]
+        }
+    });
+
     peer.on('open', (id) => {
         const el = document.getElementById('peer-id-display');
         if (el) el.innerText = id;
+        console.log('My Peer ID is: ' + id);
     });
+
     peer.on('error', (err) => {
         console.warn('PeerJS Error:', err);
+        const el = document.getElementById('peer-id-display');
+        if (el) el.innerText = "连接服务失败";
     });
 }
 
