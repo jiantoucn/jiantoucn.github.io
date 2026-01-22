@@ -3,17 +3,18 @@
 document.addEventListener('DOMContentLoaded', () => {
     const cameraStatus = document.getElementById('status-text');
     if(cameraStatus) {
-        cameraStatus.innerText = "v1.39.0 - 摄像头未启动";
+        cameraStatus.innerText = "v1.39.2 - 摄像头未启动";
     }
 
     // 1. 初始化 Live2D
     Live2DController.init('canvas');
 
     // 2. 默认加载模型
-    const defaultUrl = document.getElementById('model-url').value;
-    if (defaultUrl) {
-        Live2DController.loadModel(defaultUrl, 'status-text');
-    }
+    // 修改：默认不加载任何模型，等待用户选择
+    // const defaultUrl = document.getElementById('model-url').value;
+    // if (defaultUrl) {
+    //    Live2DController.loadModel(defaultUrl, 'status-text');
+    // }
 
     // 3. 绑定事件
     bindEvents();
@@ -23,6 +24,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 5. 初始化 PeerJS (仅用于左侧 ID 显示，不显示右侧弹窗)
     initPeerJS();
+
+    // 6. 预加载常用模型 (后台静默加载)
+    setTimeout(() => {
+        const preloadModels = [
+            'models/希罗/希罗.model3.json',
+            'models/艾玛/艾玛.model3.json'
+        ];
+
+        console.log("开始预加载模型...");
+        
+        preloadModels.reduce((promise, url) => {
+            return promise.then(() => {
+                console.log(`正在预加载: ${url}`);
+                return Live2DController.prefetchModelAssets(url, () => {});
+            });
+        }, Promise.resolve()).then(() => {
+             console.log("所有模型预加载完成");
+        }).catch(err => {
+             console.warn("模型预加载失败:", err);
+        });
+
+    }, 2000); // 延迟 2 秒执行，优先保证页面渲染
 });
 
 function initPeerJS() {
@@ -141,7 +164,7 @@ function bindEvents() {
                     if (debugEl) debugEl.innerText = `数据处理错误: ${err.message}`;
                 }
             });
-            statusText.innerText = "摄像头正在运行 (v1.39.0)";
+            statusText.innerText = "摄像头正在运行 (v1.39.2)";
             document.getElementById('btn-camera').disabled = true;
             
             // 显示监控面板
