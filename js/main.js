@@ -1,7 +1,7 @@
-// js/main.js - v2.0.6
+// js/main.js - v2.0.7
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("Main.js v2.0.6 loaded");
+    console.log("Main.js v2.0.7 loaded");
 
     // 强制检查 Service Worker 更新
     if ('serviceWorker' in navigator) {
@@ -379,12 +379,49 @@ function initPeerJS() {
         const el = document.getElementById('peer-id-display');
         if (el) el.innerText = id;
         console.log('My Peer ID is: ' + id);
+        showToast('远程连接码: ' + id);
+    });
+
+    peer.on('connection', (conn) => {
+        console.log('收到远程连接:', conn.peer);
+        showToast(`远程设备已连接`);
+        updateStatus(`远程设备已连接`, 'active');
+
+        // 关闭本地摄像头以节省资源 (可选，这里暂时不强制关闭，让用户决定)
+        // if (uiState.monitorOpen) { ... }
+
+        conn.on('data', (data) => {
+            // 处理接收到的数据
+            if (data && (data.face || data.pose)) {
+                try {
+                    Live2DController.update(data);
+                    // 仅当本地摄像头未开启时，或者想看远程数据时更新调试UI
+                    // 这里我们假设远程连接时，用户希望看到远程的数据
+                    updateDebugUI(data);
+                } catch (err) {
+                    // 防止高频报错
+                }
+            }
+        });
+
+        conn.on('close', () => {
+            showToast('远程设备已断开');
+            updateStatus('远程连接断开', 'normal');
+        });
+        
+        conn.on('error', (err) => {
+             console.error('Connection error:', err);
+             showToast('远程连接错误');
+        });
     });
 
     peer.on('error', (err) => {
         console.warn('PeerJS Error:', err);
         const el = document.getElementById('peer-id-display');
         if (el) el.innerText = "连接服务失败";
+        if (err.type === 'unavailable-id') {
+             showToast('ID冲突，请刷新页面');
+        }
     });
 }
 
