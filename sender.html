@@ -2,79 +2,137 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Live2D 面捕 - 采集端 (Sender) v2.0.14</title>
-    <meta name="theme-color" content="#202020">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Live2D 面捕发送端 v2.0.16</title>
+    <meta name="theme-color" content="#1a1a1a">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     
-    <!-- CSS 变量与样式 (与主页保持一致) -->
+    <!-- 依赖库 -->
+    <!-- vConsole 用于移动端调试 -->
+    <script src="https://unpkg.com/vconsole@latest/dist/vconsole.min.js"></script>
+    
+    <!-- PeerJS -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    
+    <!-- MediaPipe & Kalidokit -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/holistic/holistic.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/kalidokit@1.1.5/dist/kalidokit.umd.js"></script>
+
+    <!-- 核心逻辑 -->
+    <script src="js/camera-controller.js?v=2.0.16"></script>
+
     <style>
         :root {
-            --bg-color: #202020;
-            --panel-bg: rgba(30, 30, 30, 0.75);
-            --panel-border: rgba(255, 255, 255, 0.1);
-            --text-color: #eee;
-            --accent-color: #3aa0ff;
-            --accent-hover: #2980b9;
-            --danger-color: #e74c3c;
-            --success-color: #2ecc71;
-            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            --bg-color: #000000;
+            --card-bg: rgba(30, 30, 30, 0.7);
+            --text-primary: #ffffff;
+            --text-secondary: #aaaaaa;
+            --accent-color: #0a84ff;
+            --success-color: #30d158;
+            --danger-color: #ff453a;
+            --warning-color: #ffd60a;
+            --font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
         }
 
-        body { 
-            background: var(--bg-color); 
-            color: var(--text-color); 
-            font-family: var(--font-family); 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            margin: 0; 
-            padding: 20px;
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background: var(--bg-color);
+            color: var(--text-primary);
+            font-family: var(--font-family);
             min-height: 100vh;
-            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            padding-bottom: env(safe-area-inset-bottom);
             overflow-x: hidden;
         }
 
-        h2 { 
-            margin-top: 0; 
-            font-weight: 600;
-            font-size: 20px;
-            color: var(--accent-color);
-            margin-bottom: 20px;
+        /* 顶部状态栏 */
+        .header {
+            padding: 12px 16px;
+            padding-top: max(12px, env(safe-area-inset-top));
+            background: rgba(20, 20, 20, 0.8);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            border-bottom: 0.5px solid rgba(255,255,255,0.1);
         }
 
-        .container {
-            width: 100%;
-            max-width: 500px;
+        .header h1 {
+            margin: 0;
+            font-size: 17px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-pill {
+            padding: 4px 10px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #666;
+            transition: background 0.3s, box-shadow 0.3s;
+        }
+        .status-dot.active { background: var(--success-color); box-shadow: 0 0 8px var(--success-color); }
+        .status-dot.error { background: var(--danger-color); }
+        .status-dot.warn { background: var(--warning-color); }
+
+        /* 主内容区 */
+        .main-content {
+            flex: 1;
+            padding: 16px;
             display: flex;
             flex-direction: column;
-            gap: 20px;
-            z-index: 10;
+            gap: 16px;
+            max-width: 600px;
+            margin: 0 auto;
+            width: 100%;
         }
 
-        /* 卡片样式 */
-        .card {
-            background: var(--panel-bg);
-            padding: 20px;
-            border-radius: 12px;
-            border: 1px solid var(--panel-border);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-
-        /* 视频容器 */
-        #video-container {
+        /* 视频预览区 */
+        .video-container {
             position: relative;
             width: 100%;
-            padding-top: 75%; /* 4:3 */
-            background: black;
-            border-radius: 8px;
+            padding-top: 56.25%; /* 16:9 Aspect Ratio */
+            background: #111;
+            border-radius: 16px;
             overflow: hidden;
-            display: none; /* 初始隐藏 */
-            border: 1px solid var(--panel-border);
-            margin-bottom: 15px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .video-placeholder {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #555;
+            z-index: 1;
+            background: #000;
         }
 
         #video-preview, #output-canvas {
@@ -92,358 +150,412 @@
             pointer-events: none;
         }
 
-        /* 输入框与按钮 */
-        input[type="text"], select {
+        .fps-badge {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(4px);
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            color: var(--success-color);
+            z-index: 3;
+            font-family: monospace;
+        }
+
+        /* 控制面板 */
+        .control-panel {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 16px;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .panel-header {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .panel-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        .panel-row:last-child { margin-bottom: 0; }
+
+        .input-wrapper {
+            flex: 1;
+            position: relative;
+        }
+
+        input[type="text"] {
             width: 100%;
-            padding: 12px;
-            border-radius: 8px;
+            background: rgba(0,0,0,0.3);
             border: 1px solid rgba(255,255,255,0.1);
-            background: rgba(0,0,0,0.2);
+            padding: 12px;
+            border-radius: 10px;
             color: white;
             font-size: 16px;
-            box-sizing: border-box;
-            text-align: center;
             outline: none;
             transition: border-color 0.2s;
         }
+        input[type="text"]:focus { border-color: var(--accent-color); }
 
-        input[type="text"]:focus, select:focus {
-            border-color: var(--accent-color);
-            background: rgba(0,0,0,0.4);
+        select {
+            width: 100%;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 12px;
+            border-radius: 10px;
+            color: white;
+            font-size: 14px;
+            outline: none;
+            -webkit-appearance: none;
+            color: var(--text-primary);
         }
 
-        button {
-            width: 100%;
-            padding: 12px;
-            border-radius: 8px;
+        /* 按钮样式 */
+        .btn {
             border: none;
-            background: var(--accent-color);
-            color: white;
-            font-size: 16px;
+            padding: 12px 16px;
+            border-radius: 10px;
+            font-size: 15px;
             font-weight: 600;
             cursor: pointer;
-            transition: background 0.2s, transform 0.1s;
-        }
-
-        button:active {
-            transform: scale(0.98);
-        }
-
-        button:hover {
-            background: var(--accent-hover);
-        }
-
-        button.secondary {
-            background: rgba(255,255,255,0.1);
-            color: #ccc;
-            font-size: 14px;
-            padding: 8px;
-        }
-        
-        button.secondary:hover {
-            background: rgba(255,255,255,0.2);
-            color: white;
-        }
-
-        button.danger {
-            background: var(--danger-color);
-        }
-
-        /* 状态指示 */
-        .status-row {
+            transition: all 0.2s;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 8px;
-            margin-top: 10px;
-            font-size: 14px;
-            color: #aaa;
+            gap: 6px;
         }
+        .btn:active { transform: scale(0.96); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #555;
-        }
-        .status-dot.active { background: var(--success-color); box-shadow: 0 0 5px var(--success-color); }
-        .status-dot.error { background: var(--danger-color); }
+        .btn-primary { background: var(--accent-color); color: white; }
+        .btn-success { background: var(--success-color); color: black; }
+        .btn-danger { background: var(--danger-color); color: white; }
+        .btn-ghost { background: transparent; color: var(--text-secondary); border: 1px solid rgba(255,255,255,0.1); }
 
         /* 日志区域 */
-        .log-box {
-            font-family: 'Menlo', 'Monaco', monospace;
-            font-size: 11px;
-            color: #888;
+        .log-container {
+            background: #000;
+            border-radius: 12px;
+            padding: 10px;
             height: 120px;
             overflow-y: auto;
-            background: rgba(0,0,0,0.3);
-            padding: 10px;
-            border-radius: 8px;
-            border: 1px solid var(--panel-border);
-            text-align: left;
+            font-family: "SF Mono", Monaco, Consolas, monospace;
+            font-size: 11px;
+            border: 1px solid rgba(255,255,255,0.1);
         }
 
-        .log-entry { margin-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 2px; }
-        .log-time { color: #555; margin-right: 5px; }
+        .log-entry { margin-bottom: 4px; line-height: 1.4; color: #888; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 2px; }
+        .log-entry.error { color: #ff6b6b; }
+        .log-entry.success { color: #51cf66; }
+        .log-entry.warn { color: #fcc419; }
+        .log-entry.info { color: #339af0; }
 
-        /* 设置区域网格 */
-        .settings-grid {
+        .helper-text {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 8px;
+            opacity: 0.7;
+        }
+
+        /* 调试面板 */
+        .debug-stats {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-bottom: 15px;
+            gap: 8px;
+            font-size: 11px;
+            color: #888;
+            margin-top: 8px;
         }
+        .debug-item span { color: white; font-weight: bold; }
 
-        /* 步骤指示 */
-        .step {
-            text-align: left;
-            font-size: 14px;
-            color: #ccc;
-            margin-bottom: 15px;
-            line-height: 1.5;
-        }
-        
-        .step strong { color: var(--accent-color); }
-
-        /* Toast */
-        #toast {
-            position: fixed;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0,0,0,0.8);
-            color: white;
-            padding: 10px 20px;
-            border-radius: 20px;
-            font-size: 14px;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s;
-            z-index: 1000;
-        }
     </style>
-
-    <!-- 依赖库 -->
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/holistic/holistic.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/kalidokit@1.1.5/dist/kalidokit.umd.js"></script>
-
-    <!-- 复用 CameraController -->
-    <script src="js/camera-controller.js"></script>
 </head>
 <body>
 
-    <div class="container">
+    <div class="header">
+        <h1>📱 Sender <span style="font-size:12px; opacity:0.5;">v2.0.16</span></h1>
+        <div class="status-pill">
+            <div id="status-dot" class="status-dot"></div>
+            <span id="status-text">未连接</span>
+        </div>
+    </div>
+
+    <div class="main-content">
         
-        <!-- 头部卡片 -->
-        <div class="card" style="text-align: center;">
-            <h2>📱 手机采集端</h2>
-            <button class="secondary" onclick="window.location.href='index.html'" style="margin-bottom: 15px;">
-                🔙 返回电脑显示端
+        <!-- 视频区域 -->
+        <div class="video-container">
+            <div class="video-placeholder">
+                <div style="font-size:32px; margin-bottom:10px;">📷</div>
+                <div>点击下方启动摄像头</div>
+            </div>
+            <video id="video-preview" playsinline webkit-playsinline muted></video>
+            <canvas id="output-canvas"></canvas>
+            <div class="fps-badge">
+                FPS: <span id="fps-val">0</span>
+            </div>
+        </div>
+
+        <!-- 连接控制 -->
+        <div class="control-panel">
+            <div class="panel-header">连接设置</div>
+            <div class="panel-row">
+                <div class="input-wrapper">
+                    <input type="text" id="target-id" placeholder="输入电脑端 ID (如 PC-1234)">
+                </div>
+                <button id="btn-connect" class="btn btn-primary" style="width: 80px;">连接</button>
+            </div>
+            <div class="debug-stats" id="connection-stats" style="display:none;">
+                <div class="debug-item">已发送: <span id="stat-sent">0</span></div>
+                <div class="debug-item">耗时: <span id="stat-latency">-</span> ms</div>
+            </div>
+        </div>
+
+        <!-- 摄像头控制 -->
+        <div class="control-panel">
+            <div class="panel-header">摄像头与模型</div>
+            <div class="panel-row">
+                <select id="sel-resolution">
+                    <option value="480x360">360p (流畅)</option>
+                    <option value="640x480" selected>480p (推荐)</option>
+                    <option value="1280x720">720p (清晰)</option>
+                </select>
+                <select id="sel-model">
+                    <option value="0">Lite (快)</option>
+                    <option value="1" selected>Full (中)</option>
+                    <option value="2">Heavy (慢)</option>
+                </select>
+            </div>
+            <button id="btn-camera" class="btn btn-primary" style="width:100%;">
+                启动摄像头
             </button>
-            <div class="step">
-                1. 在电脑端点击 <strong>"远程发送端"</strong> 下方的 Peer ID。<br>
-                2. 将该 ID 输入到下方并点击连接。
-            </div>
             
-            <div style="display: flex; gap: 10px;">
-                <input type="text" id="target-id" placeholder="输入电脑端 ID (例如: PC-1234)">
-                <button id="btn-connect" style="width: auto; min-width: 80px;">连接</button>
-            </div>
-
-            <div class="status-row">
-                <div class="status-dot" id="conn-dot"></div>
-                <span id="conn-status">等待连接...</span>
-            </div>
-        </div>
-
-        <!-- 摄像头控制卡片 -->
-        <div class="card" id="camera-card" style="display:none;">
-            <div id="video-container">
-                <video id="video-preview" playsinline webkit-playsinline></video>
-                <canvas id="output-canvas"></canvas>
-            </div>
-
-            <div class="settings-grid">
-                <div>
-                    <label style="font-size:12px; color:#aaa; display:block; margin-bottom:4px;">分辨率</label>
-                    <select id="sel-resolution">
-                        <option value="480x360">360p (流畅)</option>
-                        <option value="640x480" selected>480p (默认)</option>
-                        <option value="1280x720">720p (高清)</option>
-                    </select>
-                </div>
-                <div>
-                    <label style="font-size:12px; color:#aaa; display:block; margin-bottom:4px;">模型精度</label>
-                    <select id="sel-model">
-                        <option value="0">Lite (极速)</option>
-                        <option value="1" selected>Full (均衡)</option>
-                        <option value="2">Heavy (精准)</option>
-                    </select>
-                </div>
-            </div>
-
-            <div style="display: flex; gap: 10px;">
-                <button id="btn-toggle-cam">📷 启动摄像头</button>
-                <button id="btn-stop-cam" class="danger" style="display:none;">🚫 停止</button>
-            </div>
-
-            <div class="status-row" style="margin-top: 15px;">
-                <span>FPS: <span id="fps-display" style="color:var(--accent-color);">0</span></span>
-                <span style="margin: 0 10px;">|</span>
-                <span>已发送: <span id="send-count">0</span> 帧</span>
+            <div class="panel-row" style="margin-top:12px;">
+                 <button id="btn-send-test" class="btn btn-ghost" style="flex:1; font-size:12px; padding:8px;" disabled>
+                    📡 发送测试包
+                 </button>
+                 <button id="btn-refresh" class="btn btn-ghost" style="flex:1; font-size:12px; color:var(--warning-color); padding:8px;">
+                    ♻️ 刷新页面
+                 </button>
             </div>
         </div>
 
-        <!-- 日志卡片 -->
-        <div class="log-box" id="log-area">
-            <div class="log-entry">系统就绪...</div>
+        <!-- 日志 -->
+        <div class="log-container" id="log-box">
+            <div class="log-entry">系统初始化完成...</div>
+        </div>
+        
+        <div style="text-align:center; padding-bottom: 20px;">
+             <a href="index.html" style="color:var(--text-secondary); text-decoration:none; font-size:12px;">返回首页</a>
         </div>
 
     </div>
 
-    <!-- Toast -->
-    <div id="toast">提示信息</div>
-
     <script>
-        // UI 元素
-        const els = {
-            logArea: document.getElementById('log-area'),
-            connDot: document.getElementById('conn-dot'),
-            connStatus: document.getElementById('conn-status'),
-            cameraCard: document.getElementById('camera-card'),
-            btnConnect: document.getElementById('btn-connect'),
-            btnToggleCam: document.getElementById('btn-toggle-cam'),
-            btnStopCam: document.getElementById('btn-stop-cam'),
-            sendCount: document.getElementById('send-count'),
-            toast: document.getElementById('toast')
+        // 初始化 VConsole
+        var vConsole = new VConsole();
+
+        // 全局状态
+        const appState = {
+            peer: null,
+            conn: null,
+            isCameraRunning: false,
+            lastSendTime: 0,
+            frameCount: 0,
+            totalSent: 0
         };
 
-        let peer = null;
-        let conn = null;
-        let lastSendTime = 0;
-        let frameCount = 0;
-        let isCameraRunning = false;
+        const ui = {
+            log: document.getElementById('log-box'),
+            statusDot: document.getElementById('status-dot'),
+            statusText: document.getElementById('status-text'),
+            btnConnect: document.getElementById('btn-connect'),
+            btnCamera: document.getElementById('btn-camera'),
+            btnSendTest: document.getElementById('btn-send-test'),
+            btnRefresh: document.getElementById('btn-refresh'),
+            fpsVal: document.getElementById('fps-val'),
+            targetId: document.getElementById('target-id'),
+            stats: {
+                container: document.getElementById('connection-stats'),
+                sent: document.getElementById('stat-sent')
+            }
+        };
 
-        // 日志功能
-        function log(msg) {
-            const div = document.createElement('div');
-            div.className = 'log-entry';
-            div.innerHTML = `<span class="log-time">[${new Date().toLocaleTimeString()}]</span> ${msg}`;
-            els.logArea.prepend(div);
+        // 日志系统
+        function log(msg, type = 'normal') {
+            const el = document.createElement('div');
+            el.className = `log-entry ${type}`;
+            const time = new Date().toLocaleTimeString();
+            el.innerText = `[${time}] ${msg}`;
+            ui.log.appendChild(el);
+            ui.log.scrollTop = ui.log.scrollHeight;
+            console.log(`[${type}] ${msg}`);
         }
 
-        // Toast 功能
-        function showToast(msg) {
-            els.toast.innerText = msg;
-            els.toast.style.opacity = '1';
-            setTimeout(() => { els.toast.style.opacity = '0'; }, 3000);
-        }
+        // 错误捕获
+        window.onerror = function(msg, url, lineNo, columnNo, error) {
+            log(`Global Error: ${msg} @ line ${lineNo}`, 'error');
+            return false;
+        };
 
-        // 状态更新
-        function updateConnStatus(status, type) { // type: 'active', 'error', 'normal'
-            els.connStatus.innerText = status;
-            els.connDot.className = 'status-dot';
-            if (type) els.connDot.classList.add(type);
-        }
+        // 刷新页面
+        ui.btnRefresh.addEventListener('click', () => {
+            if(confirm('确定要刷新页面吗？这将断开连接。')) {
+                window.location.reload(true);
+            }
+        });
 
-        // 1. 初始化 PeerJS
+        // ==========================================
+        // 1. PeerJS 连接逻辑
+        // ==========================================
+        
+        // 生成随机 ID (4位数字，方便输入)
+        const randomId = Math.floor(1000 + Math.random() * 9000);
+        const peerId = `Mobile-${randomId}`;
+        
+        // 自动填入上次连接的 ID
+        const lastTargetId = localStorage.getItem('lastTargetId');
+        if (lastTargetId) ui.targetId.value = lastTargetId;
+
+        ui.btnConnect.addEventListener('click', initPeer);
+
         function initPeer() {
-            peer = new Peer(null, {
+            const targetId = ui.targetId.value.trim();
+            if (!targetId) {
+                log('请输入电脑端 ID', 'warn');
+                return;
+            }
+            
+            localStorage.setItem('lastTargetId', targetId);
+            ui.btnConnect.disabled = true;
+            ui.btnConnect.innerText = '连接中...';
+
+            if (appState.peer) {
+                appState.peer.destroy();
+            }
+
+            log(`正在连接到 PeerJS 服务器... (ID: ${peerId})`, 'info');
+
+            appState.peer = new Peer(peerId, {
                 debug: 1,
                 config: {
                     'iceServers': [
                         { url: 'stun:stun.l.google.com:19302' },
-                        { url: 'stun:stun1.l.google.com:19302' },
-                        { url: 'stun:stun2.l.google.com:19302' },
-                        { url: 'stun:stun3.l.google.com:19302' },
-                        { url: 'stun:stun4.l.google.com:19302' },
-                        { url: 'stun:stun.services.mozilla.com' }
-                    ],
-                    'sdpSemantics': 'unified-plan'
+                        { url: 'stun:stun1.l.google.com:19302' }
+                    ]
                 }
             });
 
-            peer.on('open', (id) => {
-                log('本机 ID: ' + id);
+            appState.peer.on('open', (id) => {
+                log(`服务器连接成功，ID: ${id}`, 'success');
+                connectToPC(targetId);
             });
 
-            peer.on('error', (err) => {
-                log('PeerJS 错误: ' + err.type);
-                updateConnStatus('Peer 服务错误', 'error');
+            appState.peer.on('error', (err) => {
+                log(`Peer 错误: ${err.type}`, 'error');
+                ui.btnConnect.disabled = false;
+                ui.btnConnect.innerText = '重试';
+                ui.statusDot.className = 'status-dot error';
+                ui.statusText.innerText = '连接失败';
             });
         }
 
-        initPeer();
-
-        // 2. 连接逻辑
-        els.btnConnect.addEventListener('click', () => {
-            const targetId = document.getElementById('target-id').value.trim();
-            if (!targetId) return showToast('请输入目标 ID');
+        function connectToPC(targetId) {
+            log(`正在连接到电脑端: ${targetId}...`, 'info');
             
-            if (conn) {
-                conn.close();
-            }
-
-            log(`正在连接到 ${targetId}...`);
-            updateConnStatus('正在连接...', 'normal');
-            
-            conn = peer.connect(targetId, {
+            // 使用 reliable: true 确保数据完整性
+            const conn = appState.peer.connect(targetId, {
                 reliable: true,
                 serialization: 'json'
             });
 
             conn.on('open', () => {
-                log('✅ 连接成功！');
-                updateConnStatus('已连接 - 准备发送', 'active');
-                showToast('连接成功');
-                els.cameraCard.style.display = 'block'; // 显示摄像头控制
+                log(`已连接到电脑端!`, 'success');
+                appState.conn = conn;
+                
+                ui.statusDot.className = 'status-dot active';
+                ui.statusText.innerText = '已连接';
+                ui.btnConnect.innerText = '已连接';
+                ui.btnConnect.classList.replace('btn-primary', 'btn-success');
+                ui.btnSendTest.disabled = false;
+                ui.stats.container.style.display = 'grid';
+
+                // 发送握手包
+                conn.send({ type: 'handshake', msg: 'Mobile connected' });
             });
 
             conn.on('close', () => {
-                log('❌ 连接断开');
-                updateConnStatus('连接断开', 'error');
-                showToast('连接断开');
+                log('连接已断开', 'warn');
+                appState.conn = null;
+                ui.statusDot.className = 'status-dot';
+                ui.statusText.innerText = '未连接';
+                ui.btnConnect.disabled = false;
+                ui.btnConnect.innerText = '连接';
+                ui.btnConnect.classList.add('btn-primary');
+                ui.btnConnect.classList.remove('btn-success');
+                ui.btnSendTest.disabled = true;
             });
-            
+
             conn.on('error', (err) => {
-                log('连接错误: ' + err);
-                updateConnStatus('连接错误', 'error');
+                log(`连接错误: ${err}`, 'error');
             });
-        });
+        }
 
-        // 3. 摄像头逻辑 (使用 CameraController)
-        els.btnToggleCam.addEventListener('click', async () => {
-            if (isCameraRunning) {
-                // 如果已经在运行，这里当作“重启/应用设置”
-                await stopCam();
+        ui.btnSendTest.addEventListener('click', () => {
+            if (appState.conn && appState.conn.open) {
+                appState.conn.send({ type: 'test', msg: 'Hello from Mobile!', timestamp: Date.now() });
+                log('已发送测试数据包', 'success');
+                appState.totalSent++;
+                ui.stats.sent.innerText = appState.totalSent;
+            } else {
+                log('连接未就绪', 'error');
             }
-            await startCam();
         });
 
-        els.btnStopCam.addEventListener('click', async () => {
-            await stopCam();
+        // ==========================================
+        // 2. 摄像头与 MediaPipe
+        // ==========================================
+        ui.btnCamera.addEventListener('click', async () => {
+            if (appState.isCameraRunning) {
+                await stopCamera();
+            } else {
+                await startCamera();
+            }
         });
 
-        async function startCam() {
+        async function startCamera() {
+            ui.btnCamera.disabled = true;
+            ui.btnCamera.innerText = '启动中...';
+            
+            // 检查依赖
+            let missingDeps = [];
+            if (typeof window.drawConnectors === 'undefined' && typeof drawConnectors === 'undefined') missingDeps.push('drawing_utils');
+            if (typeof Holistic === 'undefined') missingDeps.push('Holistic');
+            if (typeof Kalidokit === 'undefined') missingDeps.push('Kalidokit');
+            
+            if (missingDeps.length > 0) {
+                log(`警告: 缺少依赖库 ${missingDeps.join(', ')}`, 'warn');
+                // 尝试继续，也许 window 对象还没挂载但库已加载
+            }
+
             const [w, h] = document.getElementById('sel-resolution').value.split('x').map(Number);
             const complexity = parseInt(document.getElementById('sel-model').value);
 
-            els.btnToggleCam.disabled = true;
-            els.btnToggleCam.innerText = "启动中...";
-            
-            log(`启动摄像头: ${w}x${h}, 精度:${complexity}`);
-
-            // 配置 CameraController
             CameraController.currentWidth = w;
             CameraController.currentHeight = h;
             CameraController.currentComplexity = complexity;
-            CameraController.refineFace = true;
             
-            // 确保绘制配置开启
-            // window.drawConnectors = true; // 已移除：这会覆盖 drawing_utils 库的函数
+            // 确保绘图开启
             CameraController.setDrawConfig({
                 showFace: true,
                 showPose: true,
@@ -452,88 +564,84 @@
 
             try {
                 await CameraController.init('video-preview', 'output-canvas', (data) => {
-                    handleResults(data);
+                    processData(data);
                 });
+
+                appState.isCameraRunning = true;
+                ui.btnCamera.innerText = '停止摄像头';
+                ui.btnCamera.classList.replace('btn-primary', 'btn-danger');
+                ui.btnCamera.disabled = false;
                 
-                isCameraRunning = true;
-                els.btnToggleCam.innerText = "🔄 应用设置 (重启)";
-                els.btnToggleCam.disabled = false;
-                els.btnStopCam.style.display = 'inline-block';
-                
-                // 显示容器
-                document.getElementById('video-container').style.display = 'block';
-                
-                log('摄像头已启动');
+                // 移除占位符
+                document.querySelector('.video-placeholder').style.display = 'none';
+                log('摄像头已启动', 'success');
+
             } catch (err) {
                 console.error(err);
-                log('摄像头启动失败: ' + err.message);
-                showToast('启动失败');
-                els.btnToggleCam.disabled = false;
-                els.btnToggleCam.innerText = "📷 启动摄像头";
+                log(`启动失败: ${err.message}`, 'error');
+                ui.btnCamera.disabled = false;
+                ui.btnCamera.innerText = '启动摄像头';
             }
         }
 
-        async function stopCam() {
+        async function stopCamera() {
+            ui.btnCamera.disabled = true;
             await CameraController.stop();
-            isCameraRunning = false;
-            els.btnToggleCam.innerText = "📷 启动摄像头";
-            els.btnStopCam.style.display = 'none';
-            document.getElementById('video-container').style.display = 'none';
+            appState.isCameraRunning = false;
+            
+            ui.btnCamera.innerText = '启动摄像头';
+            ui.btnCamera.classList.replace('btn-danger', 'btn-primary');
+            ui.btnCamera.disabled = false;
+            
+            document.querySelector('.video-placeholder').style.display = 'flex';
             log('摄像头已停止');
         }
 
-        function handleResults(data) {
-            // 发送数据逻辑
-            if (!conn || !conn.open) return;
+        // ==========================================
+        // 3. 数据处理与发送
+        // ==========================================
+        let lastLogTime = 0;
+        let packetCount = 0;
 
-            // 限制发送频率 (30 FPS 左右，避免阻塞通道)
-            const now = Date.now();
-            if (now - lastSendTime < 33) return; 
-            lastSendTime = now;
+        function processData(data) {
+            // 更新本地 FPS
+            ui.fpsVal.innerText = Math.round(data.fps || 0);
 
-            // 构造数据包
-            // 只需要发送解算后的数据 (face, pose 等)，不需要 raw landmarks (太大了)
-            // 除非你需要远程调试 raw landmarks
-            const packet = {
-                face: data.face,
-                pose: data.pose,
-                gesture: data.gesture,
-                fps: data.fps,
-                timestamp: now
-            };
-            
-            conn.send(packet);
-            
-            frameCount++;
-            els.sendCount.innerText = frameCount;
+            // 发送逻辑
+            if (appState.conn && appState.conn.open) {
+                const now = Date.now();
+                // 30 FPS 限制 (33ms)
+                if (now - appState.lastSendTime > 33) {
+                    
+                    // 构建数据包
+                    // 确保即使解算失败（null），也会发送结构，以便接收端知道没有数据
+                    const packet = {
+                        type: 'motion_data', // 明确类型
+                        face: data.face,
+                        pose: data.pose,
+                        gesture: data.gesture,
+                        fps: data.fps,
+                        timestamp: now
+                    };
+
+                    try {
+                        appState.conn.send(packet);
+                        appState.lastSendTime = now;
+                        appState.totalSent++;
+                        packetCount++;
+                        
+                        // 更新 UI 统计
+                        if (packetCount % 30 === 0) { // 每30帧更新一次UI，减少DOM操作
+                             ui.stats.sent.innerText = appState.totalSent;
+                        }
+
+                    } catch (e) {
+                        console.error('Send error:', e);
+                        log('发送失败: ' + e.message, 'error');
+                    }
+                }
+            }
         }
-
-        // 页面关闭时清理
-        window.addEventListener('beforeunload', () => {
-            if (conn) conn.close();
-            CameraController.stop();
-        });
-
-        // 刷新按钮逻辑
-        document.getElementById('btn-refresh').addEventListener('click', () => {
-            showToast('正在清理缓存并刷新...');
-            // 清理 Service Worker
-            if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.getRegistrations().then(registrations => {
-                    for (let registration of registrations) registration.unregister();
-                });
-            }
-            // 清理 Cache Storage
-            if ('caches' in window) {
-                caches.keys().then(names => {
-                    for (let name of names) caches.delete(name);
-                });
-            }
-            // 延迟刷新
-            setTimeout(() => {
-                window.location.reload(true);
-            }, 500);
-        });
 
     </script>
 </body>

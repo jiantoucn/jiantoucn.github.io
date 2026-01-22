@@ -1,4 +1,4 @@
-// js/live2d-controller.js
+// js/live2d-controller.js - v2.0.16
 window.Live2DController = {
     app: null,
     currentModel: null,

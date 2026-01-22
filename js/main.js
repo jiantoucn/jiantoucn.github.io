@@ -1,7 +1,7 @@
-// js/main.js - v2.0.13
+// js/main.js - v2.0.16
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("Main.js v2.0.14 loaded");
+    console.log("Main.js v2.0.16 loaded");
 
     // 强制检查 Service Worker 更新
     if ('serviceWorker' in navigator) {

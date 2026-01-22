@@ -1,4 +1,4 @@
-// js/camera-controller.js - v2.0.14
+// js/camera-controller.js - v2.0.16
 // 确保全局变量存在，防止重复定义或丢失
 if (typeof window.CameraController === 'undefined') {
     window.CameraController = {
@@ -249,111 +249,122 @@ if (typeof window.CameraController === 'undefined') {
                     if (fpsEl) fpsEl.innerText = this.fps;
                 }
 
-                const { canvasCtx, canvasElement } = this;
-                if (!canvasCtx) return; // 安全检查
+                // --- 1. 解算逻辑 (优先执行，不依赖绘图) ---
+                let faceRig = null;
+                let poseRig = null;
+                let leftHandRig = null;
+                let rightHandRig = null;
+                let leftGesture = null;
+                let rightGesture = null;
 
-                canvasCtx.save();
-                try {
-                    canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-                    // canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height); // 不再重绘视频，节省性能
-                    
-                    // 只有在开启对应选项时才进行绘制操作，节省性能
-                    const shouldDraw = window.drawConnectors && (this.drawConfig.showPose || this.drawConfig.showFace || this.drawConfig.showHands);
-                    
-                    if (shouldDraw) {
-                        // 1. 绘制 Pose (加粗线条)
-                        if (results.poseLandmarks && this.drawConfig.showPose) {
-                            drawConnectors(canvasCtx, results.poseLandmarks, POSE_CONNECTIONS, {color: '#00FF00', lineWidth: 4});
-                        }
-
-                        // 2. 绘制 Face (加粗线条)
-                        if (results.faceLandmarks && this.drawConfig.showFace) {
-                            // ... 这里的代码保持不变，通过逻辑跳过 ...
-                            drawConnectors(canvasCtx, results.faceLandmarks, FACEMESH_TESSELATION, {color: '#C0C0C070', lineWidth: 1}); // 网格保持细线
-                            drawConnectors(canvasCtx, results.faceLandmarks, FACEMESH_RIGHT_EYE, {color: '#FF3030', lineWidth: 3});
-                            drawConnectors(canvasCtx, results.faceLandmarks, FACEMESH_RIGHT_EYEBROW, {color: '#FF3030', lineWidth: 3});
-                            drawConnectors(canvasCtx, results.faceLandmarks, FACEMESH_LEFT_EYE, {color: '#30FF30', lineWidth: 3});
-                            drawConnectors(canvasCtx, results.faceLandmarks, FACEMESH_LEFT_EYEBROW, {color: '#30FF30', lineWidth: 3});
-                            drawConnectors(canvasCtx, results.faceLandmarks, FACEMESH_FACE_OVAL, {color: '#E0E0E0', lineWidth: 3});
-                            drawConnectors(canvasCtx, results.faceLandmarks, FACEMESH_LIPS, {color: '#E0E0E0', lineWidth: 3});
-                            if (window.FACEMESH_RIGHT_IRIS) {
-                                 drawConnectors(canvasCtx, results.faceLandmarks, FACEMESH_RIGHT_IRIS, {color: '#FF3030', lineWidth: 3});
-                                 drawConnectors(canvasCtx, results.faceLandmarks, FACEMESH_LEFT_IRIS, {color: '#30FF30', lineWidth: 3});
-                            }
-                        }
-
-                        // 3. 绘制 Hands (加粗线条)
-                        if (window.HAND_CONNECTIONS && this.drawConfig.showHands) {
-                            if (results.leftHandLandmarks) {
-                                drawConnectors(canvasCtx, results.leftHandLandmarks, HAND_CONNECTIONS, {color: '#CC0000', lineWidth: 4});
-                                drawLandmarks(canvasCtx, results.leftHandLandmarks, {color: '#00FF00', lineWidth: 2});
-                            }
-                            if (results.rightHandLandmarks) {
-                                drawConnectors(canvasCtx, results.rightHandLandmarks, HAND_CONNECTIONS, {color: '#00CC00', lineWidth: 4});
-                                drawLandmarks(canvasCtx, results.rightHandLandmarks, {color: '#FF0000', lineWidth: 2});
-                            }
-                        }
-                    }
-
-                    // 4. 使用 Kalidokit 解算
-                    let faceRig = null;
-                    let poseRig = null;
-                    let leftHandRig = null;
-                    let rightHandRig = null;
-                    let leftGesture = null;
-                    let rightGesture = null;
-
-                    if (window.Kalidokit) {
-                        // 面部解算
-                        if (results.faceLandmarks) {
-                            try {
-                                faceRig = Kalidokit.Face.solve(results.faceLandmarks, {
-                                    runtime: 'mediapipe',
-                                    video: this.videoElement,
-                                    smoothBlink: true,
-                                    blinkSettings: [0.25, 0.75]
-                                });
-                            } catch(e) { console.warn("Face solve error", e); }
-                        }
-
-                        // 身体解算
-                        if (results.poseLandmarks && results.poseWorldLandmarks) {
-                            try {
-                                poseRig = Kalidokit.Pose.solve(results.poseLandmarks, results.poseWorldLandmarks, {
-                                    runtime: 'mediapipe',
-                                    video: this.videoElement,
-                                    enableLegs: false
-                                });
-                            } catch(e) { console.warn("Pose solve error", e); }
-                        }
-                        
-                        // 手部数字识别
+                if (window.Kalidokit) {
+                    // 面部解算
+                    if (results.faceLandmarks) {
                         try {
-                            if (results.leftHandLandmarks) leftGesture = this.detectNumberGesture(results.leftHandLandmarks);
-                            if (results.rightHandLandmarks) rightGesture = this.detectNumberGesture(results.rightHandLandmarks);
-                        } catch(e) { console.warn("Gesture detect error", e); }
+                            faceRig = Kalidokit.Face.solve(results.faceLandmarks, {
+                                runtime: 'mediapipe',
+                                video: this.videoElement,
+                                smoothBlink: true,
+                                blinkSettings: [0.25, 0.75]
+                            });
+                        } catch(e) { console.warn("Face solve error", e); }
                     }
 
-                    if (this.onResultsCallback) {
-                        this.onResultsCallback({
-                            face: faceRig,
-                            pose: poseRig,
-                            leftHand: leftHandRig,
-                            rightHand: rightHandRig,
-                            gesture: { left: leftGesture, right: rightGesture },
-                            fps: this.fps,
-                            raw: {
-                                faceLandmarks: results.faceLandmarks,
-                                poseLandmarks: results.poseLandmarks
-                            }
-                        });
+                    // 身体解算
+                    if (results.poseLandmarks && results.poseWorldLandmarks) {
+                        try {
+                            poseRig = Kalidokit.Pose.solve(results.poseLandmarks, results.poseWorldLandmarks, {
+                                runtime: 'mediapipe',
+                                video: this.videoElement,
+                                enableLegs: false
+                            });
+                        } catch(e) { console.warn("Pose solve error", e); }
                     }
-                } finally {
-                    canvasCtx.restore();
+                    
+                    // 手部数字识别
+                    try {
+                        if (results.leftHandLandmarks) leftGesture = this.detectNumberGesture(results.leftHandLandmarks);
+                        if (results.rightHandLandmarks) rightGesture = this.detectNumberGesture(results.rightHandLandmarks);
+                    } catch(e) { console.warn("Gesture detect error", e); }
+                }
+
+                // 立即执行回调，发送数据
+                if (this.onResultsCallback) {
+                    this.onResultsCallback({
+                        face: faceRig,
+                        pose: poseRig,
+                        leftHand: leftHandRig,
+                        rightHand: rightHandRig,
+                        gesture: { left: leftGesture, right: rightGesture },
+                        fps: this.fps,
+                        raw: {
+                            faceLandmarks: results.faceLandmarks,
+                            poseLandmarks: results.poseLandmarks
+                        }
+                    });
+                }
+
+                // --- 2. 绘图逻辑 (即使失败也不影响数据发送) ---
+                const { canvasCtx, canvasElement } = this;
+                if (canvasCtx && canvasElement) { 
+                    canvasCtx.save();
+                    try {
+                        canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+                        // canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height); // 不再重绘视频，节省性能
+                        
+                        // 只有在开启对应选项时才进行绘制操作，节省性能
+                        let drawFn = null;
+                        try {
+                            if (typeof window.drawConnectors === 'function') {
+                                drawFn = window.drawConnectors;
+                            } else if (typeof drawConnectors === 'function') {
+                                drawFn = drawConnectors;
+                            }
+                        } catch(e) { console.warn("Drawing utils check failed", e); }
+
+                        const shouldDraw = drawFn && 
+                                         (this.drawConfig.showPose || this.drawConfig.showFace || this.drawConfig.showHands);
+                        
+                        if (shouldDraw) {
+                            // 1. 绘制 Pose (加粗线条)
+                            if (results.poseLandmarks && this.drawConfig.showPose) {
+                                drawFn(canvasCtx, results.poseLandmarks, POSE_CONNECTIONS, {color: '#00FF00', lineWidth: 4});
+                            }
+
+                            // 2. 绘制 Face (加粗线条)
+                            if (results.faceLandmarks && this.drawConfig.showFace) {
+                                // ... 这里的代码保持不变，通过逻辑跳过 ...
+                                drawFn(canvasCtx, results.faceLandmarks, FACEMESH_TESSELATION, {color: '#C0C0C070', lineWidth: 1}); // 网格保持细线
+                                drawFn(canvasCtx, results.faceLandmarks, FACEMESH_RIGHT_EYE, {color: '#FF3030', lineWidth: 3});
+                                drawFn(canvasCtx, results.faceLandmarks, FACEMESH_RIGHT_EYEBROW, {color: '#FF3030', lineWidth: 3});
+                                drawFn(canvasCtx, results.faceLandmarks, FACEMESH_LEFT_EYE, {color: '#30FF30', lineWidth: 3});
+                                drawFn(canvasCtx, results.faceLandmarks, FACEMESH_LEFT_EYEBROW, {color: '#30FF30', lineWidth: 3});
+                                drawFn(canvasCtx, results.faceLandmarks, FACEMESH_FACE_OVAL, {color: '#E0E0E0', lineWidth: 3});
+                                drawFn(canvasCtx, results.faceLandmarks, FACEMESH_LIPS, {color: '#E0E0E0', lineWidth: 3});
+                                if (window.FACEMESH_RIGHT_IRIS) {
+                                     drawFn(canvasCtx, results.faceLandmarks, FACEMESH_RIGHT_IRIS, {color: '#FF3030', lineWidth: 3});
+                                     drawFn(canvasCtx, results.faceLandmarks, FACEMESH_LEFT_IRIS, {color: '#30FF30', lineWidth: 3});
+                                }
+                            }
+
+                            // 3. 绘制 Hands (加粗线条)
+                            if (window.HAND_CONNECTIONS && this.drawConfig.showHands) {
+                                if (results.leftHandLandmarks) {
+                                    drawFn(canvasCtx, results.leftHandLandmarks, HAND_CONNECTIONS, {color: '#CC0000', lineWidth: 4});
+                                    drawLandmarks(canvasCtx, results.leftHandLandmarks, {color: '#00FF00', lineWidth: 2});
+                                }
+                                if (results.rightHandLandmarks) {
+                                    drawFn(canvasCtx, results.rightHandLandmarks, HAND_CONNECTIONS, {color: '#00CC00', lineWidth: 4});
+                                    drawLandmarks(canvasCtx, results.rightHandLandmarks, {color: '#FF0000', lineWidth: 2});
+                                }
+                            }
+                        }
+                    } finally {
+                        canvasCtx.restore();
+                    }
                 }
             } catch (err) {
                 console.error("Critical error in handleResults:", err);
-                if (this.canvasCtx) { try { this.canvasCtx.restore(); } catch(e) {} }
             }
         },
 
