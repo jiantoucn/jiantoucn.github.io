@@ -1,7 +1,7 @@
-// js/main.js - v2.0.8
+// js/main.js - v2.0.10
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("Main.js v2.0.8 loaded");
+    console.log("Main.js v2.0.10 loaded");
 
     // 强制检查 Service Worker 更新
     if ('serviceWorker' in navigator) {
@@ -293,22 +293,31 @@ document.addEventListener('DOMContentLoaded', () => {
             html += `Rot X (Pitch) : ${deg.x.toFixed(1)}°\n`;
             html += `Rot Y (Yaw)   : ${deg.y.toFixed(1)}°\n`;
             html += `Rot Z (Roll)  : ${deg.z.toFixed(1)}°\n`;
-            html += `\n`;
             
-            html += `=== FACE EYES ===\n`;
+            html += `\n=== FACE EYES ===\n`;
             html += `Open Left     : ${face.eye.l.toFixed(2)}\n`;
             html += `Open Right    : ${face.eye.r.toFixed(2)}\n`;
             html += `Pupil X       : ${face.pupil ? face.pupil.x.toFixed(2) : '-'}\n`;
             html += `Pupil Y       : ${face.pupil ? face.pupil.y.toFixed(2) : '-'}\n`;
-            html += `\n`;
+            html += `Brow Left     : ${face.brow ? face.brow.l.toFixed(2) : '-'}\n`;
+            html += `Brow Right    : ${face.brow ? face.brow.r.toFixed(2) : '-'}\n`;
 
-            html += `=== FACE MOUTH ===\n`;
+            html += `\n=== FACE MOUTH ===\n`;
             html += `Open Y        : ${face.mouth.y.toFixed(2)}\n`;
             html += `Form (Vowel)  : ${face.mouth.shape ? getDominantVowel(face.mouth.shape) : '-'}\n`;
-            html += `\n`;
+            
+            if (face.mouth.shape) {
+                const shapes = Object.entries(face.mouth.shape)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 3)
+                    .map(([k, v]) => `${k}:${v.toFixed(2)}`)
+                    .join(', ');
+                html += `Top Shapes    : ${shapes}\n`;
+            }
         } else {
-            html += `=== FACE ===\nNot Detected\n\n`;
+            html += `=== FACE ===\nNot Detected\n`;
         }
+        html += `\n`;
 
         // --- Gesture Info ---
         const gesture = data.gesture;
@@ -326,12 +335,33 @@ document.addEventListener('DOMContentLoaded', () => {
         // --- Pose Info ---
         if (data.pose) {
              html += `=== BODY POSE ===\n`;
-             // 简单的身体数据展示，例如肩膀位置
-             // Kalidokit pose result has slightly different structure, check raw landmarks if needed
-             // But data.pose is likely the rigged result
              html += `Detected      : YES\n`;
+             // Add raw landmark visibility
+             if (data.raw && data.raw.poseLandmarks) {
+                 const lm = data.raw.poseLandmarks;
+                 // 11=Left Shoulder, 12=Right Shoulder, 15=Left Wrist, 16=Right Wrist
+                 const ls = lm[11], rs = lm[12];
+                 const lw = lm[15], rw = lm[16];
+                 if (ls && rs) {
+                     html += `Shoulder Vis  : L:${ls.visibility.toFixed(2)} R:${rs.visibility.toFixed(2)}\n`;
+                     html += `Shoulder Z    : L:${ls.z.toFixed(2)} R:${rs.z.toFixed(2)}\n`;
+                 }
+                 if (lw && rw) {
+                     html += `Wrist Vis     : L:${lw.visibility.toFixed(2)} R:${rw.visibility.toFixed(2)}\n`;
+                 }
+             }
         } else {
              html += `=== BODY POSE ===\nNot Detected\n`;
+        }
+        
+        // --- Raw Info ---
+        if (data.raw && data.raw.faceLandmarks) {
+             html += `\n=== RAW FACE ===\n`;
+             // MediaPipe Facemesh: 1 is nose tip
+             const nose = data.raw.faceLandmarks[1]; 
+             if (nose) {
+                 html += `Nose Pos      : x:${nose.x.toFixed(2)} y:${nose.y.toFixed(2)} z:${nose.z.toFixed(2)}\n`;
+             }
         }
 
         els.debugInfo.innerText = html;
