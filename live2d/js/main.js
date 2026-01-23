@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log("Main.js v2.0.16 loaded");
 
     // 强制检查 Service Worker 更新
-    if ('serviceWorker' in navigator) {
+    if ('serviceWorker' in navigator && (window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
         navigator.serviceWorker.getRegistrations().then(registrations => {
             for(let registration of registrations) {
                 // 添加 catch 避免未捕获的 Promise 错误触发全局弹窗
@@ -12,6 +12,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     console.log('SW update check:', err.message);
                 });
             }
+        }).catch(err => {
+            console.warn('SW getRegistrations failed:', err);
         });
     }
     const uiState = {
@@ -98,9 +100,23 @@ document.addEventListener('DOMContentLoaded', () => {
         if (uiState.transparentMode) {
             showToast('已切换为透明背景 (OBS)');
         } else {
-            showToast('已切换为深色背景');
+            showToast('已恢复默认背景');
         }
     });
+
+    // 5. 内存监控
+    const memoryInfoEl = document.getElementById('memory-info');
+    if (performance && performance.memory) {
+        memoryInfoEl.style.display = 'block';
+        setInterval(() => {
+            const memory = performance.memory;
+            const used = (memory.usedJSHeapSize / 1048576).toFixed(1);
+            const total = (memory.totalJSHeapSize / 1048576).toFixed(1);
+            // const limit = (memory.jsHeapSizeLimit / 1048576).toFixed(1);
+            
+            memoryInfoEl.innerHTML = `RAM: <span style="color:${used > 500 ? '#e74c3c' : '#2ecc71'}">${used}</span> / ${total} MB`;
+        }, 2000);
+    }
 
     // 5. 刷新按钮
     document.getElementById('btn-refresh').addEventListener('click', () => {
