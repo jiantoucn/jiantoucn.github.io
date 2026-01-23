@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>工具箱导航</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#3b82f6">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
@@ -61,5 +65,12 @@
 
     </div>
 
+    <script>
+        if ('serviceWorker' in navigator && (window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+            navigator.serviceWorker.register('./sw.js')
+                .then(() => console.log('Navigation SW Registered'))
+                .catch(err => console.error('Navigation SW Error:', err));
+        }
+    </script>
 </body>
 </html>
