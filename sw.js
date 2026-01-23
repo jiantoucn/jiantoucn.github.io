@@ -2,7 +2,7 @@ const CACHE_NAME = 'tools-nav-v1.0.0';
 const ASSETS = [
     './',
     './index.html',
-    './icon.png',
+    './icon.svg',
     'https://cdn.tailwindcss.com'
 ];
 
