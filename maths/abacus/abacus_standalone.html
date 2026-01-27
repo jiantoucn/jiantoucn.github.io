@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>在线交互式算盘 (单文件版)</title>
+    <style>
+:root {
+    --wood-primary: #8d5e2a;
+    --wood-dark: #5c3a15;
+    --wood-light: #b07d44;
+    --bead-color: #e0ac69;
+    --bead-shadow: #8f602b;
+    --rod-color: #333;
+    --bg-color: #f4f4f9;
+    --highlight: #ffd700;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    user-select: none; /* 防止频繁点击选中文字 */
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--bg-color);
+    display: flex;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.container {
+    width: 100%;
+    max-width: 1000px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+}
+
+header {
+    text-align: center;
+    width: 100%;
+}
+
+h1 {
+    color: #333;
+    margin-bottom: 15px;
+    font-size: 1.8rem;
+}
+
+.screen-wrapper {
+    background: #222;
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: 4px solid #555;
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+    display: inline-block;
+    min-width: 200px;
+}
+
+.digital-screen {
+    color: #0f0;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 2.5rem;
+    text-align: right;
+    letter-spacing: 2px;
+    text-shadow: 0 0 5px rgba(0, 255, 0, 0.7);
+}
+
+/* 算盘主体 */
+.abacus-frame {
+    position: relative;
+    background: var(--wood-primary);
+    border: 12px solid var(--wood-dark);
+    border-radius: 8px;
+    padding: 0 10px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    overflow-x: auto; /* 小屏幕允许横向滚动 */
+    height: 360px; /* 增加高度以容纳底部数字 */
+    scrollbar-width: none; /* Firefox 隐藏滚动条 */
+    -ms-overflow-style: none; /* IE/Edge 隐藏滚动条 */
+}
+
+/* Chrome/Safari/Webkit 隐藏滚动条 */
+.abacus-frame::-webkit-scrollbar {
+    display: none;
+}
+
+/* 横梁 */
+.beam {
+    position: absolute;
+    top: 90px; /* 上珠区域高度 */
+    left: 0;
+    width: 100%;
+    height: 16px;
+    background: var(--wood-dark);
+    z-index: 10;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+/* 算盘档位（列） */
+.column {
+    position: relative;
+    width: 60px; /* 每档宽度 */
+    height: 100%;
+    margin: 0 2px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* 档杆 */
+.rod {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: 40px; /* 留出底部数字空间 */
+    width: 4px;
+    background: var(--rod-color);
+    transform: translateX(-50%);
+    z-index: 1;
+}
+
+/* 底部数字显示 */
+.digit-label {
+    position: absolute;
+    bottom: 5px;
+    width: 100%;
+    text-align: center;
+    font-family: 'Courier New', monospace;
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #fff;
+    background-color: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+    padding: 2px 0;
+    z-index: 10;
+}
+
+/* 上珠区域 */
+.upper-deck {
+    position: absolute;
+    top: 0;
+    width: 100%;
+    height: 90px;
+    /* border-bottom: 1px solid rgba(0,0,0,0.1); */
+}
+
+/* 下珠区域 */
+.lower-deck {
+    position: absolute;
+    top: 106px; /* 90 + 16(beam) */
+    bottom: 0;
+    width: 100%;
+}
+
+/* 算珠 */
+.bead {
+    position: absolute;
+    left: 50%;
+    width: 50px;
+    height: 26px;
+    transform: translateX(-50%);
+    background: radial-gradient(circle at 30% 30%, var(--bead-color), var(--bead-shadow));
+    border-radius: 13px; /* 扁圆形 */
+    box-shadow: 2px 2px 4px rgba(0,0,0,0.4);
+    z-index: 5;
+    cursor: pointer;
+    transition: top 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.bead:hover {
+    filter: brightness(1.1);
+}
+
+/* 算珠位置逻辑 */
+/* 上珠：默认靠上（远离横梁，值为0）。Active时靠下（靠近横梁，值为5） */
+/* 这里的 active 类表示“拨下” */
+.upper-deck .bead {
+    top: 5px; /* 默认位置 */
+}
+.upper-deck .bead.active {
+    top: 55px; /* 靠近横梁的位置 */
+}
+
+/* 下珠：默认靠下（远离横梁，值为0）。Active时靠上（靠近横梁，值为1） */
+/* 这里的 active 类表示“拨上” */
+.lower-deck .bead {
+    /* 具体的 top 值将在 JS 中根据 index 动态计算，或者这里写死 */
+    /* 为了方便 CSS transition，我们使用 top 定位 */
+}
+
+/* 控制区域 */
+.controls {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: center;
+    width: 100%;
+}
+
+.input-group {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+input[type="text"] {
+    padding: 10px 15px;
+    font-size: 1.1rem;
+    border: 2px solid #ccc;
+    border-radius: 4px;
+    width: 250px;
+}
+
+button {
+    padding: 10px 20px;
+    font-size: 1rem;
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+button:hover {
+    background: #0056b3;
+}
+
+button.secondary {
+    background: #6c757d;
+}
+
+button.secondary:hover {
+    background: #5a6268;
+}
+
+.help-text {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+/* 移动端适配 */
+@media (max-width: 600px) {
+    .abacus-frame {
+        justify-content: flex-start; /* 允许滚动 */
+    }
+    .bead {
+        width: 40px;
+        height: 22px;
+    }
+    .column {
+        width: 46px;
+    }
+}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>交互式算盘模拟</h1>
+            <div class="screen-wrapper">
+                <div id="number-display" class="digital-screen">0</div>
+            </div>
+        </header>
+
+        <main>
+            <div id="abacus" class="abacus-frame">
+                <div class="beam"></div> <!-- 横梁 -->
+                <!-- 算盘档位将由 JS 动态生成 -->
+            </div>
+        </main>
+
+        <section class="controls">
+            <div class="input-group">
+                <input type="text" id="calc-input" placeholder="输入算式 (如 13+5*2)" autocomplete="off">
+                <button id="btn-calc">演示计算</button>
+                <button id="btn-reset" class="secondary">重置</button>
+            </div>
+            <div class="help-text">
+                <p>操作说明：点击算珠即可拨动。上方为天元（每珠5），下方为地元（每珠1）。靠梁为值。</p>
+            </div>
+        </section>
+    </div>
+
+    <script>
+document.addEventListener('DOMContentLoaded', () => {
+    const COLUMN_COUNT = 13;
+    const UPPER_BEAD_COUNT = 2;
+    const LOWER_BEAD_COUNT = 5;
+    
+    // UI Elements
+    const abacusContainer = document.getElementById('abacus');
+    const displayElement = document.getElementById('number-display');
+    const calcInput = document.getElementById('calc-input');
+    const btnCalc = document.getElementById('btn-calc');
+    const btnReset = document.getElementById('btn-reset');
+
+    // State
+    // columns[i] 存储第 i 列的状态。
+    let abacusState = [];
+
+    // 初始化算盘
+    function initAbacus() {
+        abacusContainer.innerHTML = '<div class="beam"></div>'; // 重置 HTML，保留横梁
+        abacusState = [];
+
+        for (let i = 0; i < COLUMN_COUNT; i++) {
+            // 初始化状态：所有珠子离梁
+            abacusState.push({
+                upper: Array(UPPER_BEAD_COUNT).fill(false),
+                lower: Array(LOWER_BEAD_COUNT).fill(false)
+            });
+
+            // 创建 DOM
+            const col = document.createElement('div');
+            col.className = 'column';
+            col.dataset.colIndex = i;
+
+            // 档杆
+            const rod = document.createElement('div');
+            rod.className = 'rod';
+            col.appendChild(rod);
+
+            // 上珠区域
+            const upperDeck = document.createElement('div');
+            upperDeck.className = 'upper-deck';
+            for (let b = 0; b < UPPER_BEAD_COUNT; b++) {
+                const bead = createBead('upper', i, b);
+                upperDeck.appendChild(bead);
+            }
+            col.appendChild(upperDeck);
+
+            // 下珠区域
+            const lowerDeck = document.createElement('div');
+            lowerDeck.className = 'lower-deck';
+            for (let b = 0; b < LOWER_BEAD_COUNT; b++) {
+                const bead = createBead('lower', i, b);
+                lowerDeck.appendChild(bead);
+            }
+            col.appendChild(lowerDeck);
+            
+            // 底部数字标签
+            const digitLabel = document.createElement('div');
+            digitLabel.className = 'digit-label';
+            digitLabel.textContent = '0';
+            col.appendChild(digitLabel);
+
+            abacusContainer.appendChild(col);
+        }
+        
+        updateDisplay();
+        renderBeads();
+    }
+
+    function createBead(type, colIndex, beadIndex) {
+        const bead = document.createElement('div');
+        bead.className = 'bead';
+        bead.dataset.type = type;
+        bead.dataset.col = colIndex;
+        bead.dataset.idx = beadIndex;
+        
+        // 点击事件
+        bead.addEventListener('click', () => {
+            toggleBead(colIndex, type, beadIndex);
+        });
+        
+        return bead;
+    }
+
+    // 核心逻辑：拨珠
+    function toggleBead(colIndex, type, beadIndex) {
+        const colState = abacusState[colIndex];
+        
+        if (type === 'upper') {
+            const currentState = colState.upper[beadIndex];
+            const newState = !currentState;
+            
+            // 检查物理约束并联动
+            if (beadIndex === 1) { // 靠近梁的那颗
+                if (newState) { // 要向下(靠梁)
+                    colState.upper[1] = true; 
+                    // 0 号不用动，它可以在上面
+                } else { // 要向上(离梁)
+                    colState.upper[1] = false;
+                    colState.upper[0] = false; // 0 号必须跟着上去
+                }
+            } else if (beadIndex === 0) { // 远离梁的那颗
+                if (newState) { // 要向下
+                    colState.upper[0] = true;
+                    colState.upper[1] = true; // 1 号必须已经在下面，或者跟着下去
+                } else { // 要向上
+                    colState.upper[0] = false;
+                    // 1 号不用动
+                }
+            }
+        } else {
+            const currentState = colState.lower[beadIndex];
+            const newState = !currentState; // true=Up(Active), false=Down(Inactive)
+            
+            if (newState) { // 向上拨 (Add value)
+                // 本珠及所有上面的珠子都要上去
+                for (let i = 0; i <= beadIndex; i++) {
+                    colState.lower[i] = true;
+                }
+            } else { // 向下拨 (Remove value)
+                // 本珠及所有下面的珠子都要下去
+                for (let i = beadIndex; i < LOWER_BEAD_COUNT; i++) {
+                    colState.lower[i] = false;
+                }
+            }
+        }
+        
+        renderBeads();
+        updateDisplay();
+    }
+
+    // 渲染珠子位置
+    function renderBeads() {
+        abacusState.forEach((colState, colIndex) => {
+            const colDiv = abacusContainer.children[colIndex + 1]; // +1 because of .beam
+            const upperBeads = colDiv.querySelector('.upper-deck').children;
+            const lowerBeads = colDiv.querySelector('.lower-deck').children;
+            
+            // Render Upper
+            const u0 = colState.upper[0];
+            const u1 = colState.upper[1];
+            
+            upperBeads[0].style.top = u0 ? '32px' : '5px';
+            upperBeads[1].style.top = u1 ? '60px' : '33px';
+            
+            // Render Lower
+            const GAP = 50; 
+            
+            for(let b=0; b<LOWER_BEAD_COUNT; b++) {
+                let topPos = 5 + b * 28;
+                if (!colState.lower[b]) {
+                    topPos += GAP;
+                }
+                lowerBeads[b].style.top = `${topPos}px`;
+            }
+        });
+    }
+
+    // 计算数值
+    function calculateValue() {
+        let total = 0;
+        let place = 1; // 1, 10, 100...
+        
+        // 从右向左计算
+        for (let i = COLUMN_COUNT - 1; i >= 0; i--) {
+            const col = abacusState[i];
+            let colVal = 0;
+            
+            // 上珠：每颗代表 5
+            if (col.upper[1]) colVal += 5;
+            if (col.upper[0]) colVal += 5;
+            
+            // 下珠：每颗代表 1
+            col.lower.forEach(isActive => {
+                if (isActive) colVal += 1;
+            });
+            
+            // 更新每列底部的数字显示
+            const colDiv = abacusContainer.children[i + 1];
+            if (colDiv) {
+                const digitLabel = colDiv.querySelector('.digit-label');
+                if (digitLabel) {
+                    digitLabel.textContent = colVal;
+                }
+            }
+            
+            total += colVal * place;
+            place *= 10;
+        }
+        return total;
+    }
+
+    function updateDisplay() {
+        const val = calculateValue();
+        // Format with commas
+        displayElement.textContent = val.toLocaleString();
+    }
+
+    // 设置特定数值（用于动画演示）
+    function setValue(number) {
+        let strNum = Math.floor(number).toString();
+        if (strNum.length > COLUMN_COUNT) {
+            alert("数值超出算盘显示范围");
+            return;
+        }
+        
+        // Pad with zeros
+        while (strNum.length < COLUMN_COUNT) {
+            strNum = "0" + strNum;
+        }
+        
+        for (let i = 0; i < COLUMN_COUNT; i++) {
+            const digit = parseInt(strNum[i]);
+            setColumnValue(i, digit);
+        }
+        renderBeads();
+        updateDisplay();
+    }
+    
+    function setColumnValue(colIndex, digit) {
+        const col = abacusState[colIndex];
+        
+        // Reset
+        col.upper = [false, false];
+        col.lower = [false, false, false, false, false];
+        
+        if (digit === 0) return;
+        
+        let remainder = digit;
+        
+        // Upper
+        if (remainder >= 5) {
+            col.upper[1] = true; // Bottom upper bead down
+            remainder -= 5;
+        }
+        
+        // Lower
+        for (let b = 0; b < remainder; b++) {
+            col.lower[b] = true;
+        }
+    }
+
+    // 动画演示逻辑
+    async function animateCalculation(expression) {
+        if (!expression) return;
+        
+        // 禁用按钮防止重入
+        btnCalc.disabled = true;
+        calcInput.disabled = true;
+        
+        try {
+            // 1. 预计算最终结果以检查有效性
+            const finalCheck = new Function('return ' + expression)();
+            if (isNaN(finalCheck) || !isFinite(finalCheck) || finalCheck < 0) {
+                alert("结果无效或是负数，算盘无法显示");
+                btnCalc.disabled = false;
+                calcInput.disabled = false;
+                return;
+            }
+
+            // 2. 拆解步骤：按加减号分割，但保留乘除块
+            const parts = expression.split(/([+\-])/);
+            
+            let currentVal = 0;
+            let steps = [];
+            
+            // 解析 token 流
+            let i = 0;
+            // 处理可能的初始负号
+            if (parts[i].trim() === '') {
+                if (parts[i+1] === '-') {
+                    let val = evalSafe(parts[i+2]);
+                    currentVal = -val;
+                    i += 3;
+                } else if (parts[i+1] === '+') {
+                    let val = evalSafe(parts[i+2]);
+                    currentVal = val;
+                    i += 3;
+                } else {
+                    i++;
+                }
+            } else {
+                currentVal = evalSafe(parts[i]);
+                i++;
+            }
+            
+            steps.push(currentVal);
+            
+            while (i < parts.length) {
+                const operator = parts[i];
+                const nextPart = parts[i+1];
+                
+                if (!operator || nextPart === undefined) break;
+                
+                const nextVal = evalSafe(nextPart);
+                
+                if (operator === '+') {
+                    currentVal += nextVal;
+                } else if (operator === '-') {
+                    currentVal -= nextVal;
+                }
+                
+                steps.push(currentVal);
+                i += 2;
+            }
+            
+            // 3. 执行动画
+            // 重置
+            setValue(0);
+            await wait(600);
+            
+            for (let stepVal of steps) {
+                if (stepVal < 0) {
+                    console.warn("中间结果为负数，跳过显示: " + stepVal);
+                    continue; 
+                }
+                setValue(stepVal);
+                await wait(1200); // 留足时间观察
+            }
+            
+        } catch (e) {
+            console.error(e);
+            alert("算式解析错误");
+        } finally {
+            btnCalc.disabled = false;
+            calcInput.disabled = false;
+        }
+    }
+    
+    function evalSafe(expr) {
+        return new Function('return ' + expr)();
+    }
+    
+    function wait(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    // Event Listeners
+    btnReset.addEventListener('click', () => {
+        initAbacus();
+    });
+
+    btnCalc.addEventListener('click', () => {
+        const expr = calcInput.value;
+        if (!expr) return;
+        animateCalculation(expr);
+    });
+    
+    // Init
+    initAbacus();
+});
+    </script>
+</body>
+</html>

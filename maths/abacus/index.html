@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>在线交互式算盘</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .nav-back-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            text-decoration: none;
+            color: #666;
+            background: #fff;
+            padding: 8px 16px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        .nav-back-btn:hover {
+            color: #333;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+    </style>
+</head>
+<body>
+    <a href="../../index.html" class="nav-back-btn">⬅ 返回导航</a>
+    <div class="container">
+        <header>
+            <h1>交互式算盘模拟</h1>
+            <div class="screen-wrapper">
+                <div id="number-display" class="digital-screen">0</div>
+            </div>
+        </header>
+
+        <main>
+            <div id="abacus" class="abacus-frame">
+                <div class="beam"></div> <!-- 横梁 -->
+                <!-- 算盘档位将由 JS 动态生成 -->
+            </div>
+        </main>
+
+        <section class="controls">
+            <div class="input-group">
+                <input type="text" id="calc-input" placeholder="输入算式 (如 13+5*2)" autocomplete="off">
+                <button id="btn-calc">演示计算</button>
+                <button id="btn-reset" class="secondary">重置</button>
+            </div>
+            <div class="help-text">
+                <p>操作说明：点击算珠即可拨动。上方为天元（每珠5），下方为地元（每珠1）。靠梁为值。</p>
+            </div>
+        </section>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

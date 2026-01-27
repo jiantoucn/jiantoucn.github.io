@@ -25,6 +25,24 @@
     <script src="js/camera-controller.js?v=2.0.16"></script>
 
     <style>
+        .nav-back-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            text-decoration: none;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        .nav-back-btn:hover {
+            background: rgba(255, 255, 255, 0.4);
+        }
         :root {
             --bg-color: #000000;
             --card-bg: rgba(30, 30, 30, 0.7);
@@ -283,6 +301,7 @@
 </head>
 <body>
 
+    <a href="../index.html" class="nav-back-btn">⬅ 返回导航</a>
     <div class="header">
         <h1>📱 Sender <span style="font-size:12px; opacity:0.5;">v2.0.16</span></h1>
         <div class="status-pill">
