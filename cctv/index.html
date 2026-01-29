@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Monitor v1.6.3</title>
+    <title>Live Monitor v1.6.6</title>
     <style>
         .nav-back-btn {
             position: fixed;
@@ -736,29 +736,10 @@
                         'args': []
                     }), '*');
                 } else if (type === 'twitch') {
-                    // Twitch: 尝试 postMessage 控制，如果无效则刷新 iframe
-                    const msg = {
-                        eventName: 'message',
-                        params: {
-                            method: 'setMuted',
-                            args: [isGlobalMuted]
-                        }
-                    };
-                    iframe.contentWindow.postMessage(msg, '*');
-
-                    // 同时也更新 src 以确保状态同步 (虽然会导致重载)
-                    let src = iframe.src;
-                    const targetMuted = isGlobalMuted ? 'true' : 'false';
-                    if (src.includes('muted=')) {
-                        const currentMuted = src.match(/muted=(true|false)/)[1];
-                        if (currentMuted !== targetMuted) {
-                            iframe.src = src.replace(/muted=(true|false)/, `muted=${targetMuted}`);
-                        }
-                    } else {
-                        iframe.src = src + `&muted=${targetMuted}`;
+                    if (box._twitchPlayer) {
+                        try { box._twitchPlayer.setMuted(isGlobalMuted); } catch(_) {}
                     }
                 } else if (type === 'bilibili') {
-                    // Bilibili: 只能通过 reload iframe 更新静音状态
                     let src = iframe.src;
                     const targetMute = isGlobalMuted ? '1' : '0';
                     if (src.includes('mute=')) {
@@ -770,6 +751,78 @@
                         iframe.src = src + `&mute=${targetMute}`;
                     }
                 }
+            });
+        }
+
+        function getTwitchParents() {
+            const h = window.location.hostname || 'localhost';
+            const s = new Set(['localhost', '127.0.0.1', h]);
+            return Array.from(s);
+        }
+        
+        function getTwitchParent() {
+            return window.location.hostname || 'localhost';
+        }
+
+        function ensureTwitch(cb) {
+            if (window.Twitch && window.Twitch.Embed) { cb(); return; }
+            const s = document.createElement('script');
+            s.src = 'https://embed.twitch.tv/embed/v1.js';
+            s.onload = cb;
+            document.head.appendChild(s);
+        }
+
+        function mountTwitch(box, containerId, channel) {
+            ensureTwitch(() => {
+                const container = document.getElementById(containerId);
+                if (!container) return;
+                const wrapper = container.parentElement;
+                const loading = wrapper ? wrapper.querySelector('.twitch-loading') : null;
+                const setLoading = (show) => {
+                    if (loading) loading.style.display = show ? 'flex' : 'none';
+                };
+                const useIframe = () => {
+                    if (!wrapper) return;
+                    const parent = getTwitchParent();
+                    const mutedParam = isGlobalMuted ? 'true' : 'false';
+                    wrapper.innerHTML = `<iframe src="https://player.twitch.tv/?channel=${channel}&parent=${parent}&autoplay=true&muted=${mutedParam}" allowfullscreen allow="autoplay; encrypted-media; picture-in-picture" referrerpolicy="origin" style="width:100%;height:100%;border:0;"></iframe>`;
+                };
+                let attempt = 0;
+                const startEmbed = () => {
+                    if (!container) return;
+                    setLoading(true);
+                    container.innerHTML = '';
+                    const parents = getTwitchParents();
+                    const embed = new window.Twitch.Embed(containerId, {
+                        channel,
+                        parent: parents,
+                        width: '100%',
+                        height: '100%',
+                        autoplay: true,
+                        muted: true
+                    });
+                    let ready = false;
+                    const timer = setTimeout(() => {
+                        if (ready) return;
+                        if (attempt < 1) {
+                            attempt += 1;
+                            startEmbed();
+                        } else {
+                            useIframe();
+                        }
+                    }, 6000);
+                    embed.addEventListener(window.Twitch.Embed.VIDEO_READY, () => {
+                        ready = true;
+                        clearTimeout(timer);
+                        setLoading(false);
+                        try {
+                            const player = embed.getPlayer();
+                            box._twitchPlayer = player;
+                            player.setMuted(isGlobalMuted);
+                        } catch(_) {}
+                    });
+                };
+                startEmbed();
             });
         }
 
@@ -883,26 +936,43 @@
                 const muteParam = isGlobalMuted ? '&mute=1' : ''; 
                 src = `https://www.youtube.com/embed/${id}?autoplay=1&enablejsapi=1${muteParam}`;
             } else if (type === 'twitch') {
-                // Twitch: parent 必须严格匹配当前域名
-                // 为了兼容本地环境(localhost/127.0.0.1)和部署环境，我们将常见域名都加上
-                const parents = new Set(['localhost', '127.0.0.1']);
-                if (window.location.hostname) {
-                    parents.add(window.location.hostname);
-                }
-                
-                const parentParams = Array.from(parents).map(p => `&parent=${p}`).join('');
-                const muted = isGlobalMuted ? 'true' : 'false';
-                
-                src = `https://player.twitch.tv/?channel=${id}${parentParams}&autoplay=true&muted=${muted}`;
+                const containerId = `twitch-${uniqueId.replace(':','-')}-${Date.now()}`;
+                div.innerHTML = `
+                    <div class="drag-bar" title="拖拽移动"></div>
+                    <div class="twitch-container" style="flex:1;position:relative;">
+                        <div class="twitch-loading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#bbb;font-size:12px;background:#000;">加载中...</div>
+                        <div id="${containerId}" style="width:100%;height:100%;"></div>
+                    </div>
+                    <div class="controls-overlay">
+                        <div class="control-btn close-btn" onclick="removeBox(this)" title="关闭">×</div>
+                    </div>
+                `;
+                setTimeout(() => mountTwitch(div, containerId, id), 0);
+                return div;
             }
 
             div.innerHTML = `
                 <div class="drag-bar" title="拖拽移动"></div>
-                <iframe src="${src}" allowfullscreen allow="autoplay; encrypted-media; picture-in-picture"></iframe>
+                <iframe src="${src}" allowfullscreen allow="autoplay; encrypted-media; picture-in-picture" referrerpolicy="origin"></iframe>
                 <div class="controls-overlay">
                     <div class="control-btn close-btn" onclick="removeBox(this)" title="关闭">×</div>
                 </div>
             `;
+            const iframe = div.querySelector('iframe');
+            if (type === 'twitch' && !isGlobalMuted && iframe) {
+                const msg = {
+                    eventName: 'message',
+                    params: {
+                        method: 'setMuted',
+                        args: [false]
+                    }
+                };
+                iframe.addEventListener('load', () => {
+                    setTimeout(() => {
+                        if (iframe.contentWindow) iframe.contentWindow.postMessage(msg, '*');
+                    }, 600);
+                });
+            }
             return div;
         }
 
