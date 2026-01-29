@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Monitor v1.6.2</title>
+    <title>Live Monitor v1.6.3</title>
     <style>
         .nav-back-btn {
             position: fixed;
@@ -883,13 +883,17 @@
                 const muteParam = isGlobalMuted ? '&mute=1' : ''; 
                 src = `https://www.youtube.com/embed/${id}?autoplay=1&enablejsapi=1${muteParam}`;
             } else if (type === 'twitch') {
-                // Twitch: parent=hostname
-                let parent = window.location.hostname;
-                if (!parent || parent === '') parent = 'localhost'; // Fallback for local file or generic
+                // Twitch: parent 必须严格匹配当前域名
+                // 为了兼容本地环境(localhost/127.0.0.1)和部署环境，我们将常见域名都加上
+                const parents = new Set(['localhost', '127.0.0.1']);
+                if (window.location.hostname) {
+                    parents.add(window.location.hostname);
+                }
                 
-                // Twitch muted param
+                const parentParams = Array.from(parents).map(p => `&parent=${p}`).join('');
                 const muted = isGlobalMuted ? 'true' : 'false';
-                src = `https://player.twitch.tv/?channel=${id}&parent=${parent}&autoplay=true&muted=${muted}`;
+                
+                src = `https://player.twitch.tv/?channel=${id}${parentParams}&autoplay=true&muted=${muted}`;
             }
 
             div.innerHTML = `
