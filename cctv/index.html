@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Monitor v1.6.6</title>
+    <title>Live Monitor v1.6.8</title>
     <style>
         .nav-back-btn {
             position: fixed;
@@ -740,16 +740,28 @@
                         try { box._twitchPlayer.setMuted(isGlobalMuted); } catch(_) {}
                     }
                 } else if (type === 'bilibili') {
-                    let src = iframe.src;
                     const targetMute = isGlobalMuted ? '1' : '0';
-                    if (src.includes('mute=')) {
-                        const currentMute = src.match(/mute=([01])/)[1];
-                        if (currentMute !== targetMute) {
-                            iframe.src = src.replace(/mute=[01]/, `mute=${targetMute}`);
+                    const currentMute = iframe.dataset.mute;
+                    if (currentMute === targetMute) return;
+                    let baseSrc = iframe.dataset.baseSrc;
+                    if (!baseSrc) {
+                        try {
+                            const u = new URL(iframe.src);
+                            u.searchParams.delete('mute');
+                            u.searchParams.delete('t');
+                            baseSrc = u.toString();
+                        } catch (_) {
+                            baseSrc = iframe.src.split('&mute=')[0].split('&t=')[0];
                         }
-                    } else {
-                        iframe.src = src + `&mute=${targetMute}`;
                     }
+                    const newIframe = document.createElement('iframe');
+                    newIframe.src = `${baseSrc}&mute=${targetMute}&t=${Date.now()}`;
+                    newIframe.allowFullscreen = true;
+                    newIframe.setAttribute('allow', 'autoplay; encrypted-media; picture-in-picture');
+                    newIframe.setAttribute('referrerpolicy', 'origin');
+                    newIframe.dataset.baseSrc = baseSrc;
+                    newIframe.dataset.mute = targetMute;
+                    iframe.replaceWith(newIframe);
                 }
             });
         }
@@ -925,10 +937,9 @@
             // 注意：浏览器自动播放策略可能阻止带声音的自动播放
             
             if (type === 'bilibili') {
-                // B站参数: autoplay=1 (自动播放), mute=0/1 (静音)
-                // 如果 isGlobalMuted=false (声音开启), 尝试 mute=0
-                const muteParam = isGlobalMuted ? '&mute=1' : '&mute=0';
-                src = `https://www.bilibili.com/blackboard/live/live-activity-player.html?enterTheRoom=0&cid=${id}&autoplay=1${muteParam}`;
+                const baseSrc = `https://www.bilibili.com/blackboard/live/live-activity-player.html?enterTheRoom=0&cid=${id}&autoplay=1`;
+                const muteValue = isGlobalMuted ? '1' : '0';
+                src = `${baseSrc}&mute=${muteValue}`;
             } else if (type === 'youtube') {
                 // YouTube: autoplay=1, mute=1 (强制静音才容易自动播放), enablejsapi=1 (允许JS控制)
                 // 如果用户希望默认开启声音，我们尝试不加 mute=1，但可能会被浏览器阻止自动播放
@@ -959,6 +970,10 @@
                 </div>
             `;
             const iframe = div.querySelector('iframe');
+            if (type === 'bilibili' && iframe) {
+                iframe.dataset.baseSrc = `https://www.bilibili.com/blackboard/live/live-activity-player.html?enterTheRoom=0&cid=${id}&autoplay=1`;
+                iframe.dataset.mute = isGlobalMuted ? '1' : '0';
+            }
             if (type === 'twitch' && !isGlobalMuted && iframe) {
                 const msg = {
                     eventName: 'message',
