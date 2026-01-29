@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Monitor v1.6.1</title>
+    <title>Live Monitor v1.6.2</title>
     <style>
         .nav-back-btn {
             position: fixed;
@@ -736,7 +736,7 @@
                         'args': []
                     }), '*');
                 } else if (type === 'twitch') {
-                    // Twitch Iframe API postMessage
+                    // Twitch: 尝试 postMessage 控制，如果无效则刷新 iframe
                     const msg = {
                         eventName: 'message',
                         params: {
@@ -744,10 +744,32 @@
                             args: [isGlobalMuted]
                         }
                     };
-                    // 尝试发送 Twitch 消息 (不一定生效，取决于 embed 版本)
                     iframe.contentWindow.postMessage(msg, '*');
+
+                    // 同时也更新 src 以确保状态同步 (虽然会导致重载)
+                    let src = iframe.src;
+                    const targetMuted = isGlobalMuted ? 'true' : 'false';
+                    if (src.includes('muted=')) {
+                        const currentMuted = src.match(/muted=(true|false)/)[1];
+                        if (currentMuted !== targetMuted) {
+                            iframe.src = src.replace(/muted=(true|false)/, `muted=${targetMuted}`);
+                        }
+                    } else {
+                        iframe.src = src + `&muted=${targetMuted}`;
+                    }
+                } else if (type === 'bilibili') {
+                    // Bilibili: 只能通过 reload iframe 更新静音状态
+                    let src = iframe.src;
+                    const targetMute = isGlobalMuted ? '1' : '0';
+                    if (src.includes('mute=')) {
+                        const currentMute = src.match(/mute=([01])/)[1];
+                        if (currentMute !== targetMute) {
+                            iframe.src = src.replace(/mute=[01]/, `mute=${targetMute}`);
+                        }
+                    } else {
+                        iframe.src = src + `&mute=${targetMute}`;
+                    }
                 }
-                // Bilibili iframe 无法通过 JS 动态控制声音，只能在加载时通过 URL 参数设置
             });
         }
 
