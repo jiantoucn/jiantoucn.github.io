@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bilibili Live Monitor v1.3.0</title>
+    <style>
+        .nav-back-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 2000;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            text-decoration: none;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        .nav-back-btn:hover {
+            background: rgba(255, 255, 255, 0.4);
+        }
+        :root {
+            --bg-color: #0f0f0f;
+            --panel-bg: rgba(28, 28, 30, 0.85);
+            --accent-color: #00a1d6;
+            --accent-hover: #00b5e5;
+            --border-color: #333;
+            --text-color: #fff;
+            --text-secondary: #888;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            overflow: hidden;
+        }
+
+        #app {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            position: relative;
+        }
+
+        /* 顶部悬浮胶囊 */
+        #control-capsule {
+            position: fixed;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            padding: 6px;
+            border-radius: 50px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            width: 40px; /* 初始宽度，只显示图标 */
+            height: 40px;
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        #control-capsule.expanded {
+            width: 420px;
+            border-radius: 12px;
+            padding: 12px;
+            height: auto;
+            cursor: default;
+        }
+        
+        /* 触发区域，防止鼠标移出太快 */
+        #control-capsule::before {
+            content: '';
+            position: absolute;
+            top: -20px;
+            left: -20px;
+            right: -20px;
+            bottom: -20px;
+            z-index: -1;
+        }
+
+        /* 胶囊内的图标 */
+        #capsule-icon {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            color: var(--accent-color);
+            transition: opacity 0.2s;
+        }
+        
+        #control-capsule.expanded #capsule-icon {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* 胶囊内的内容 */
+        #capsule-content {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s 0.1s;
+        }
+
+        #control-capsule.expanded #capsule-content {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .input-row {
+            display: flex;
+            gap: 8px;
+            width: 100%;
+        }
+
+        #input-room {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-color);
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        #input-room:focus {
+            border-color: var(--accent-color);
+        }
+
+        #add-btn {
+            background: var(--accent-color);
+            color: #fff;
+            border: none;
+            padding: 0 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+            white-space: nowrap;
+        }
+
+        #add-btn:hover {
+            background: var(--accent-hover);
+        }
+
+        .hint-text {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 8px;
+            text-align: center;
+        }
+
+        /* 布局容器 */
+        #layout-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .video-row {
+            display: flex;
+            flex: 1;
+            width: 100%;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .video-box {
+            flex: 1;
+            position: relative;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            min-width: 100px;
+            min-height: 100px;
+            border-right: 1px solid #1a1a1a;
+            border-bottom: 1px solid #1a1a1a;
+        }
+        
+        .video-box:last-child {
+            border-right: none;
+        }
+
+        .video-box iframe {
+            flex: 1;
+            width: 100%;
+            height: 100%;
+            border: none;
+            pointer-events: auto;
+        }
+        
+        /* 拖拽手柄 */
+        .drag-bar {
+            height: 12px;
+            width: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 20;
+            cursor: grab;
+            transition: background 0.2s;
+        }
+        
+        .video-box:hover .drag-bar {
+            background: linear-gradient(to bottom, rgba(0, 161, 214, 0.3), transparent);
+        }
+
+        /* 控制按钮 */
+        .controls-overlay {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            display: flex;
+            gap: 6px;
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 30;
+            pointer-events: auto;
+        }
+
+        .video-box:hover .controls-overlay {
+            opacity: 1;
+        }
+
+        .control-btn {
+            background: rgba(0, 0, 0, 0.6);
+            color: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            backdrop-filter: blur(4px);
+            transition: all 0.2s;
+        }
+        
+        .control-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+        
+        .close-btn:hover {
+            background: rgba(255, 77, 79, 0.8);
+            border-color: rgba(255, 77, 79, 0.8);
+        }
+
+        /* Resizers */
+        .resizer-row {
+            height: 4px;
+            background: #000;
+            cursor: row-resize;
+            z-index: 50;
+            transition: background 0.2s;
+            flex-shrink: 0;
+            position: relative;
+        }
+        
+        .resizer-row:hover, .resizer-row.active {
+            background: var(--accent-color);
+        }
+        
+        .resizer-col {
+            width: 4px;
+            background: #000;
+            cursor: col-resize;
+            z-index: 50;
+            transition: background 0.2s;
+            flex-shrink: 0;
+            height: 100%;
+            position: relative;
+        }
+        
+        .resizer-col:hover, .resizer-col.active {
+            background: var(--accent-color);
+        }
+
+        /* 空状态 */
+        #empty-tip {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #333;
+            font-size: 24px;
+            font-weight: 300;
+            pointer-events: none;
+            letter-spacing: 2px;
+        }
+        
+        /* 拖拽样式 */
+        .video-box.dragging {
+            opacity: 0.4;
+            border: 2px dashed var(--accent-color);
+        }
+        
+        .video-box.drag-over {
+            border: 2px solid var(--accent-color);
+            box-shadow: inset 0 0 20px rgba(0, 161, 214, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <a href="../index.html" class="nav-back-btn">⬅ 返回导航</a>
+    <div id="app">
+        <!-- 悬浮胶囊 -->
+        <div id="control-capsule">
+            <div id="capsule-icon">+</div>
+            <div id="capsule-content">
+                <div class="input-row">
+                    <input type="text" id="input-room" placeholder="B站直播间号 (如 6)">
+                    <button id="add-btn">添加</button>
+                </div>
+                <div class="hint-text">支持拖拽交换位置 • 拖拽边框调整大小</div>
+            </div>
+        </div>
+
+        <!-- 布局容器 -->
+        <div id="layout-container">
+            <div id="empty-tip">Waiting for signal...</div>
+            <div id="row-top" class="video-row"></div>
+            <div id="row-bottom" class="video-row"></div>
+        </div>
+    </div>
+
+    <script>
+        // 配置
+        const MAX_ROOMS = 12;
+        let draggedItem = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initCapsule();
+            initResizers();
+            updateLayoutVisibility();
+            
+            document.getElementById('add-btn').addEventListener('click', handleAddRoom);
+            document.getElementById('input-room').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') handleAddRoom();
+            });
+        });
+
+        // ================= UI 交互 =================
+        function initCapsule() {
+            const capsule = document.getElementById('control-capsule');
+            const input = document.getElementById('input-room');
+            
+            capsule.addEventListener('mouseenter', () => {
+                capsule.classList.add('expanded');
+                setTimeout(() => input.focus(), 300);
+            });
+            
+            capsule.addEventListener('mouseleave', () => {
+                if (document.activeElement !== input) {
+                    capsule.classList.remove('expanded');
+                }
+            });
+
+            // 点击外部收起
+            document.addEventListener('click', (e) => {
+                if (!capsule.contains(e.target)) {
+                    capsule.classList.remove('expanded');
+                }
+            });
+        }
+
+        // ================= 核心逻辑 =================
+        function handleAddRoom() {
+            const input = document.getElementById('input-room');
+            const val = input.value.trim();
+            if (!val) return;
+
+            const roomId = extractRoomId(val);
+            if (!roomId) {
+                alert('无效的房间号');
+                return;
+            }
+
+            addVideoBox(roomId);
+            input.value = '';
+            document.getElementById('control-capsule').classList.remove('expanded');
+        }
+
+        function extractRoomId(input) {
+            if (/^\d+$/.test(input)) return input;
+            try {
+                let urlStr = input.startsWith('http') ? input : 'https://' + input;
+                const url = new URL(urlStr);
+                if (url.searchParams.has('roomid')) return url.searchParams.get('roomid');
+                const parts = url.pathname.split('/');
+                for (let part of parts) {
+                    if (/^\d+$/.test(part)) return part;
+                }
+            } catch (e) {}
+            const match = input.match(/live\.bilibili\.com\/(?:blanc\/)?(\d+)/);
+            if (match) return match[1];
+            return null;
+        }
+
+        function addVideoBox(roomId) {
+            const topRow = document.getElementById('row-top');
+            const bottomRow = document.getElementById('row-bottom');
+            const topCount = topRow.querySelectorAll('.video-box').length;
+            const bottomCount = bottomRow.querySelectorAll('.video-box').length;
+            
+            if (topCount + bottomCount >= MAX_ROOMS) {
+                alert(`已达到最大窗口限制 (${MAX_ROOMS})`);
+                return;
+            }
+            
+            if (document.querySelector(`.video-box[data-room-id="${roomId}"]`)) {
+                alert('该直播间已存在');
+                return;
+            }
+
+            // 布局策略：上多下少
+            let targetRow = (bottomCount < topCount) ? bottomRow : topRow;
+            if (topCount + bottomCount === 0) targetRow = topRow;
+
+            const box = createBoxElement(roomId);
+            targetRow.appendChild(box);
+            refreshResizersInRow(targetRow);
+            updateLayoutVisibility();
+        }
+
+        function createBoxElement(roomId) {
+            const div = document.createElement('div');
+            div.className = 'video-box';
+            div.setAttribute('data-room-id', roomId);
+            div.draggable = true;
+            
+            div.addEventListener('dragstart', handleDragStart);
+            div.addEventListener('dragover', handleDragOver);
+            div.addEventListener('drop', handleDrop);
+            div.addEventListener('dragend', handleDragEnd);
+
+            div.innerHTML = `
+                <div class="drag-bar" title="拖拽移动"></div>
+                <iframe src="https://www.bilibili.com/blackboard/live/live-activity-player.html?enterTheRoom=0&cid=${roomId}" allowfullscreen></iframe>
+                <div class="controls-overlay">
+                    <div class="control-btn close-btn" onclick="removeBox(this)" title="关闭">×</div>
+                </div>
+            `;
+            return div;
+        }
+
+        window.removeBox = (btn) => {
+            const box = btn.closest('.video-box');
+            const row = box.parentElement;
+            row.removeChild(box);
+            refreshResizersInRow(row);
+            updateLayoutVisibility();
+        };
+
+        function updateLayoutVisibility() {
+            const topRow = document.getElementById('row-top');
+            const bottomRow = document.getElementById('row-bottom');
+            const topCount = topRow.querySelectorAll('.video-box').length;
+            const bottomCount = bottomRow.querySelectorAll('.video-box').length;
+            const emptyTip = document.getElementById('empty-tip');
+            
+            let rowResizer = document.getElementById('row-resizer');
+            if (!rowResizer) {
+                rowResizer = document.createElement('div');
+                rowResizer.id = 'row-resizer';
+                rowResizer.className = 'resizer-row';
+                topRow.after(rowResizer);
+                initRowResizer(rowResizer);
+            }
+
+            if (topCount === 0 && bottomCount === 0) {
+                emptyTip.style.display = 'block';
+                topRow.style.display = 'none';
+                bottomRow.style.display = 'none';
+                rowResizer.style.display = 'none';
+            } else if (bottomCount === 0) {
+                emptyTip.style.display = 'none';
+                topRow.style.display = 'flex';
+                topRow.style.height = '100%';
+                bottomRow.style.display = 'none';
+                rowResizer.style.display = 'none';
+            } else if (topCount === 0) {
+                emptyTip.style.display = 'none';
+                topRow.style.display = 'none';
+                bottomRow.style.display = 'flex';
+                bottomRow.style.height = '100%';
+                rowResizer.style.display = 'none';
+            } else {
+                emptyTip.style.display = 'none';
+                topRow.style.display = 'flex';
+                bottomRow.style.display = 'flex';
+                rowResizer.style.display = 'block';
+                // Reset to 50/50 if previously full
+                if (topRow.style.height === '100%') topRow.style.height = '50%';
+                if (bottomRow.style.height === '100%') bottomRow.style.height = '50%';
+            }
+        }
+
+        // ================= 布局调整 (Resizer & Swap) =================
+        function initResizers() {
+            // Placeholder for global init if needed
+        }
+
+        function refreshResizersInRow(row) {
+            row.querySelectorAll('.resizer-col').forEach(r => r.remove());
+            const boxes = Array.from(row.querySelectorAll('.video-box'));
+            if (boxes.length < 2) return;
+
+            for (let i = 0; i < boxes.length - 1; i++) {
+                const resizer = document.createElement('div');
+                resizer.className = 'resizer-col';
+                initColResizer(resizer, boxes[i], boxes[i+1]);
+                boxes[i].after(resizer);
+            }
+        }
+
+        function initRowResizer(resizer) {
+            let startY, startH1, startH2;
+            const row1 = document.getElementById('row-top');
+            const row2 = document.getElementById('row-bottom');
+
+            const onMouseDown = (e) => {
+                startY = e.clientY;
+                startH1 = row1.getBoundingClientRect().height;
+                startH2 = row2.getBoundingClientRect().height;
+                resizer.classList.add('active');
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+                toggleIframes(false);
+            };
+
+            const onMouseMove = (e) => {
+                const dy = e.clientY - startY;
+                const containerH = document.getElementById('layout-container').clientHeight;
+                const p1 = ((startH1 + dy) / containerH) * 100;
+                const p2 = ((startH2 - dy) / containerH) * 100;
+                
+                if (p1 > 10 && p2 > 10) {
+                    row1.style.height = `${p1}%`;
+                    row2.style.height = `${p2}%`;
+                }
+            };
+
+            const onMouseUp = () => {
+                resizer.classList.remove('active');
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+                toggleIframes(true);
+            };
+
+            resizer.addEventListener('mousedown', onMouseDown);
+        }
+
+        function initColResizer(resizer, box1, box2) {
+            let startX, w1, w2;
+
+            const onMouseDown = (e) => {
+                startX = e.clientX;
+                w1 = box1.getBoundingClientRect().width;
+                w2 = box2.getBoundingClientRect().width;
+                resizer.classList.add('active');
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+                toggleIframes(false);
+            };
+
+            const onMouseMove = (e) => {
+                const dx = e.clientX - startX;
+                box1.style.flex = `${w1 + dx}`;
+                box2.style.flex = `${w2 - dx}`;
+            };
+
+            const onMouseUp = () => {
+                resizer.classList.remove('active');
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+                toggleIframes(true);
+            };
+
+            resizer.addEventListener('mousedown', onMouseDown);
+        }
+
+        function toggleIframes(enable) {
+            document.querySelectorAll('iframe').forEach(f => f.style.pointerEvents = enable ? 'auto' : 'none');
+        }
+
+        // ================= 拖拽逻辑 =================
+        function handleDragStart(e) {
+            draggedItem = this;
+            this.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            this.classList.add('drag-over');
+            e.dataTransfer.dropEffect = 'move';
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            this.classList.remove('drag-over');
+            if (draggedItem && draggedItem !== this) {
+                // Swap DOM
+                const parent1 = draggedItem.parentNode;
+                const parent2 = this.parentNode;
+                
+                const placeholder = document.createElement('div');
+                parent1.insertBefore(placeholder, draggedItem);
+                parent2.insertBefore(draggedItem, this);
+                parent1.insertBefore(this, placeholder);
+                parent1.removeChild(placeholder);
+                
+                refreshResizersInRow(parent1);
+                if (parent1 !== parent2) refreshResizersInRow(parent2);
+            }
+        }
+
+        function handleDragEnd(e) {
+            this.classList.remove('dragging');
+            document.querySelectorAll('.video-box').forEach(el => el.classList.remove('drag-over'));
+            draggedItem = null;
+        }
+    </script>
+</body>
+</html>
