@@ -11,34 +11,34 @@ const state = {
 
 // WMO 天气代码映射
 const weatherCodes = {
-    0: { desc: "晴", icon: "sun", bg: "sunny" },
-    1: { desc: "主要晴", icon: "sun", bg: "sunny" },
-    2: { desc: "多云", icon: "cloud", bg: "cloudy" },
-    3: { desc: "阴", icon: "cloud", bg: "cloudy" },
-    45: { desc: "雾", icon: "fog", bg: "cloudy" },
-    48: { desc: "沉积雾", icon: "fog", bg: "cloudy" },
-    51: { desc: "毛毛雨", icon: "drizzle", bg: "rainy" },
-    53: { desc: "中毛毛雨", icon: "drizzle", bg: "rainy" },
-    55: { desc: "密毛毛雨", icon: "drizzle", bg: "rainy" },
-    56: { desc: "冻毛毛雨", icon: "drizzle", bg: "rainy" },
-    57: { desc: "密冻毛毛雨", icon: "drizzle", bg: "rainy" },
-    61: { desc: "小雨", icon: "rain", bg: "rainy" },
-    63: { desc: "中雨", icon: "rain", bg: "rainy" },
-    65: { desc: "大雨", icon: "rain", bg: "rainy" },
-    66: { desc: "冻雨", icon: "rain", bg: "rainy" },
-    67: { desc: "大冻雨", icon: "rain", bg: "rainy" },
-    71: { desc: "小雪", icon: "snow", bg: "snowy" },
-    73: { desc: "中雪", icon: "snow", bg: "snowy" },
-    75: { desc: "大雪", icon: "snow", bg: "snowy" },
-    77: { desc: "雪粒", icon: "snow", bg: "snowy" },
-    80: { desc: "阵雨", icon: "rain", bg: "rainy" },
-    81: { desc: "中阵雨", icon: "rain", bg: "rainy" },
-    82: { desc: "大阵雨", icon: "rain", bg: "rainy" },
-    85: { desc: "小雪阵", icon: "snow", bg: "snowy" },
-    86: { desc: "大雪阵", icon: "snow", bg: "snowy" },
-    95: { desc: "雷雨", icon: "storm", bg: "storm" },
-    96: { desc: "雷雨伴冰雹", icon: "storm", bg: "storm" },
-    99: { desc: "大雷雨伴冰雹", icon: "storm", bg: "storm" },
+    0: { desc: "晴", icon: "sun", bg: "sunny", intensity: 0 },
+    1: { desc: "主要晴", icon: "sun", bg: "sunny", intensity: 0 },
+    2: { desc: "多云", icon: "cloud", bg: "cloudy", intensity: 0 },
+    3: { desc: "阴", icon: "cloud", bg: "cloudy", intensity: 0 },
+    45: { desc: "雾", icon: "fog", bg: "cloudy", intensity: 0 },
+    48: { desc: "沉积雾", icon: "fog", bg: "cloudy", intensity: 0 },
+    51: { desc: "毛毛雨", icon: "drizzle", bg: "rainy", intensity: 1 },
+    53: { desc: "中毛毛雨", icon: "drizzle", bg: "rainy", intensity: 1 },
+    55: { desc: "密毛毛雨", icon: "drizzle", bg: "rainy", intensity: 1 },
+    56: { desc: "冻毛毛雨", icon: "drizzle", bg: "rainy", intensity: 1 },
+    57: { desc: "密冻毛毛雨", icon: "drizzle", bg: "rainy", intensity: 1 },
+    61: { desc: "小雨", icon: "rain", bg: "rainy", intensity: 1 },
+    63: { desc: "中雨", icon: "rain", bg: "rainy", intensity: 2 },
+    65: { desc: "大雨", icon: "rain", bg: "rainy", intensity: 3 },
+    66: { desc: "冻雨", icon: "rain", bg: "rainy", intensity: 2 },
+    67: { desc: "大冻雨", icon: "rain", bg: "rainy", intensity: 3 },
+    71: { desc: "小雪", icon: "snow", bg: "snowy", intensity: 1 },
+    73: { desc: "中雪", icon: "snow", bg: "snowy", intensity: 2 },
+    75: { desc: "大雪", icon: "snow", bg: "snowy", intensity: 3 },
+    77: { desc: "雪粒", icon: "snow", bg: "snowy", intensity: 1 },
+    80: { desc: "阵雨", icon: "rain", bg: "rainy", intensity: 1 },
+    81: { desc: "中阵雨", icon: "rain", bg: "rainy", intensity: 2 },
+    82: { desc: "大阵雨", icon: "rain", bg: "rainy", intensity: 3 },
+    85: { desc: "小雪阵", icon: "snow", bg: "snowy", intensity: 1 },
+    86: { desc: "大雪阵", icon: "snow", bg: "snowy", intensity: 3 },
+    95: { desc: "雷雨", icon: "storm", bg: "storm", intensity: 3 },
+    96: { desc: "雷雨伴冰雹", icon: "storm", bg: "storm", intensity: 3 },
+    99: { desc: "大雷雨伴冰雹", icon: "storm", bg: "storm", intensity: 3 },
 };
 
 // 图标 SVG 路径 (简化版)
@@ -76,6 +76,20 @@ function initApp() {
         // 自动定位
         getLocation();
     }
+    
+    // 启动自动刷新 (每分钟)
+    startAutoRefresh();
+}
+
+let refreshInterval = null;
+function startAutoRefresh() {
+    if (refreshInterval) clearInterval(refreshInterval);
+    refreshInterval = setInterval(() => {
+        if (state.lat && state.lon) {
+            console.log("Auto-refreshing weather data...");
+            fetchWeatherData(state.lat, state.lon, true);
+        }
+    }, 60000);
 }
 
 function setupEventListeners() {
@@ -277,7 +291,12 @@ async function searchCity(query) {
     }
 }
 
-async function fetchWeatherData(lat, lon) {
+async function fetchWeatherData(lat, lon, silent = false) {
+    if (!lat || !lon) {
+        console.error("Invalid coordinates for fetchWeatherData");
+        return;
+    }
+
     // 1. 获取天气数据
     const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,rain,showers,snowfall,weather_code,cloud_cover,pressure_msl,surface_pressure,wind_speed_10m,wind_direction_10m&hourly=temperature_2m,weather_code,is_day,precipitation_probability&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_sum,precipitation_probability_max&timezone=auto`;
     
@@ -285,21 +304,33 @@ async function fetchWeatherData(lat, lon) {
     const aqiUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&current=us_aqi`;
 
     try {
-        const [weatherRes, aqiRes] = await Promise.all([
+        // 使用 allSettled 防止 AQI 失败导致整个请求失败
+        const results = await Promise.allSettled([
             fetch(weatherUrl),
             fetch(aqiUrl)
         ]);
-        
-        const weatherData = await weatherRes.json();
-        const aqiData = await aqiRes.json();
 
-        state.weatherData = weatherData;
-        state.airQuality = aqiData;
+        // 处理天气数据
+        if (results[0].status === 'fulfilled' && results[0].value.ok) {
+            const weatherData = await results[0].value.json();
+            state.weatherData = weatherData;
+        } else {
+            throw new Error("Weather API failed");
+        }
+
+        // 处理空气质量数据 (可选)
+        if (results[1].status === 'fulfilled' && results[1].value.ok) {
+            const aqiData = await results[1].value.json();
+            state.airQuality = aqiData;
+        } else {
+            console.warn("AQI API failed, skipping AQI update");
+            // 不抛出错误，继续渲染天气
+        }
         
         renderWeather();
     } catch (e) {
         console.error("Failed to fetch weather data", e);
-        alert("获取天气数据失败");
+        if (!silent) alert("获取天气数据失败: " + e.message);
     }
 }
 
@@ -511,121 +542,469 @@ let animationId = null;
 const canvas = document.getElementById('bg-canvas');
 const ctx = canvas.getContext('2d');
 let particles = [];
+let splashParticles = [];
+let clouds = [];
+let lightningTimer = 0;
+let isThundering = false;
+let currentIntensity = 1;
+let wind = { x: 0, y: 0 };
 
-function updateBackground(bgType, isDay) {
+// 碰撞区域缓存
+let collisionZones = [];
+
+function updateCollisionZones() {
+    // 获取所有需要交互的 UI 元素 (glass-panel 和 #search-modal > div) - 移除 header 以避免溅射
+    const elements = document.querySelectorAll('.glass-panel, #search-modal > div');
+    collisionZones = Array.from(elements).map(el => {
+        const rect = el.getBoundingClientRect();
+        // 稍微扩大一点判定范围，或者只判定顶部
+        return {
+            top: rect.top,
+            left: rect.left,
+            right: rect.right,
+            bottom: rect.bottom,
+            width: rect.width
+        };
+    });
+}
+
+// 监听滚动和窗口变化更新碰撞区域
+window.addEventListener('scroll', updateCollisionZones);
+window.addEventListener('resize', () => {
+    resizeCanvas();
+    updateCollisionZones();
+});
+
+function updateBackground(bgType, isDay, intensity = 1) {
     const bg = document.getElementById('bg-gradient');
+    const current = state.weatherData?.current;
+    const daily = state.weatherData?.daily;
     
-    // 设置渐变色
-    if (isDay === 0) { // 夜晚
-        bg.className = "weather-bg-gradient bg-gradient-to-b from-gray-900 to-black";
-    } else {
-        switch(bgType) {
-            case 'sunny':
-                bg.className = "weather-bg-gradient bg-gradient-to-b from-blue-400 to-blue-300";
-                break;
-            case 'cloudy':
-                bg.className = "weather-bg-gradient bg-gradient-to-b from-gray-400 to-gray-300";
-                break;
-            case 'rainy':
-                bg.className = "weather-bg-gradient bg-gradient-to-b from-slate-700 to-slate-600";
-                break;
-            case 'snowy':
-                bg.className = "weather-bg-gradient bg-gradient-to-b from-slate-300 to-slate-200";
-                break;
-            case 'storm':
-                bg.className = "weather-bg-gradient bg-gradient-to-b from-indigo-900 to-slate-800";
-                break;
-            default:
-                bg.className = "weather-bg-gradient bg-gradient-to-b from-blue-500 to-blue-400";
-        }
+    let period = 'day';
+    if (daily && daily.sunrise && daily.sunset) {
+        period = getTimePeriod(daily.sunrise[0], daily.sunset[0]);
     }
 
-    // 启动对应的 Canvas 动画
-    startAnimation(bgType);
+    let gradientClass = "";
+    
+    // Base gradients by period
+    const periodGradients = {
+        dawn: "bg-gradient-to-b from-indigo-400 to-orange-200",
+        morning: "bg-gradient-to-b from-blue-400 to-blue-200",
+        noon: "bg-gradient-to-b from-blue-500 to-blue-300",
+        afternoon: "bg-gradient-to-b from-blue-600 to-blue-400",
+        dusk: "bg-gradient-to-b from-indigo-800 to-orange-400",
+        night: "bg-gradient-to-b from-gray-900 to-black"
+    };
+
+    if (isDay === 0 || period === 'night') {
+        gradientClass = periodGradients.night;
+    } else {
+        gradientClass = periodGradients[period] || periodGradients.morning;
+    }
+    
+    // Override/Overlay based on weather
+    switch(bgType) {
+        case 'cloudy':
+        case 'fog':
+            if (period === 'night') gradientClass = "bg-gradient-to-b from-gray-800 to-gray-900";
+            else if (period === 'dusk' || period === 'dawn') gradientClass = "bg-gradient-to-b from-slate-500 to-orange-200";
+            else gradientClass = "bg-gradient-to-b from-slate-400 to-slate-200";
+            break;
+        case 'rainy':
+            if (period === 'night') gradientClass = "bg-gradient-to-b from-slate-900 to-black";
+            else gradientClass = "bg-gradient-to-b from-slate-700 to-slate-500";
+            break;
+        case 'snowy':
+             if (period === 'night') gradientClass = "bg-gradient-to-b from-slate-800 to-slate-900";
+             else gradientClass = "bg-gradient-to-b from-slate-300 to-slate-100";
+            break;
+        case 'storm':
+            gradientClass = "bg-gradient-to-b from-indigo-950 to-slate-900";
+            break;
+    }
+    
+    bg.className = `weather-bg-gradient ${gradientClass}`;
+
+    startAnimation(bgType, isDay, intensity);
+}
+
+function getTimePeriod(sunriseIso, sunsetIso) {
+    const now = new Date();
+    const sunrise = new Date(sunriseIso);
+    const sunset = new Date(sunsetIso);
+    
+    // Adjust to today
+    sunrise.setFullYear(now.getFullYear(), now.getMonth(), now.getDate());
+    sunset.setFullYear(now.getFullYear(), now.getMonth(), now.getDate());
+
+    const oneHour = 3600000;
+    
+    if (now.getTime() < sunrise.getTime() - oneHour) return 'night';
+    if (now.getTime() < sunrise.getTime() + oneHour) return 'dawn';
+    
+    const noon = new Date(now); noon.setHours(11, 0, 0, 0);
+    if (now.getTime() < noon.getTime()) return 'morning';
+    
+    const afternoonStart = new Date(now); afternoonStart.setHours(14, 0, 0, 0);
+    if (now.getTime() < afternoonStart.getTime()) return 'noon';
+    
+    if (now.getTime() < sunset.getTime() - oneHour) return 'afternoon';
+    if (now.getTime() < sunset.getTime() + oneHour) return 'dusk';
+    
+    return 'night';
 }
 
 function resizeCanvas() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 }
-window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
 
-function startAnimation(type) {
+function startAnimation(type, isDay, intensity = 1) {
     if (animationId) cancelAnimationFrame(animationId);
     particles = [];
+    splashParticles = [];
+    clouds = [];
+    isThundering = false;
+    lightningTimer = 0;
+    currentIntensity = intensity;
     
+    // 计算风力
+    const current = state.weatherData?.current;
+    if (current) {
+        const speed = current.wind_speed_10m || 0;
+        const dir = current.wind_direction_10m || 0;
+        // 风向是来源方向，所以粒子移动方向是反的? 
+        // 通常 wind_direction 是风吹来的方向 (0=北, 90=东)
+        // 粒子应该向风吹去的方向移动
+        // x 分量: sin(dir) * speed (如果 0度是从北吹来，往南吹，x=0, y>0)
+        // 让我们简化：直接用角度计算偏移
+        const rad = (dir - 180) * Math.PI / 180; // 反向，因为是要吹去的方向
+        // 调整系数
+        const factor = 0.05; 
+        wind.x = Math.sin(rad) * speed * factor;
+        // y 轴一般雨雪自然下落，风主要影响 x 轴，但也可以微调 y
+        // 这里只影响 x 轴简单点，或者稍微影响 y
+    } else {
+        wind = { x: 0, y: 0 };
+    }
+    
+    // 每次动画开始前更新碰撞区域
+    updateCollisionZones();
+
     if (type === 'rainy' || type === 'storm') {
-        createRain();
-        animateRain();
+        const isStorm = type === 'storm';
+        if (isStorm) currentIntensity = 3; // 暴雨强制最高强度
+        createRain(isStorm); 
+        createClouds(isStorm); 
+        animateRain(isStorm);
     } else if (type === 'snowy') {
         createSnow();
         animateSnow();
-    } else if (type === 'cloudy') {
-        // 云可以用 CSS 做，或者简单的 Canvas 圆圈
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    } else if (type === 'cloudy' || type === 'fog') {
+        createClouds(false);
+        animateClouds();
+    } else if (type === 'sunny' && isDay) {
+        // 晴天也可以有一些淡淡的光晕效果
+        createSunBeams();
+        animateSunBeams();
     } else {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
 }
 
-function createRain() {
-    const count = 100;
+// --- 雨 & 溅射系统 ---
+
+function createRain(isStorm) {
+    let count;
+    if (isStorm) {
+        count = 1200;
+    } else {
+        switch(currentIntensity) {
+            case 1: count = 150; break; // 小雨
+            case 2: count = 500; break; // 中雨
+            case 3: count = 900; break; // 大雨
+            default: count = 400;
+        }
+    }
+    
     for(let i=0; i<count; i++) {
-        particles.push({
-            x: Math.random() * canvas.width,
-            y: Math.random() * canvas.height,
-            l: Math.random() * 20 + 10,
-            v: Math.random() * 5 + 10
+        resetRainDrop({}, true);
+    }
+}
+
+function resetRainDrop(p, initial = false) {
+    p.x = Math.random() * canvas.width;
+    p.y = initial ? Math.random() * canvas.height : -50;
+    
+    const lenMult = currentIntensity === 3 ? 1.5 : (currentIntensity === 1 ? 0.6 : 1);
+    const speedMult = currentIntensity === 3 ? 1.4 : (currentIntensity === 1 ? 0.7 : 1);
+
+    p.l = (Math.random() * 20 + 10) * lenMult; // 长度
+    p.v = (Math.random() * 10 + 15) * speedMult; // 速度
+    p.a = Math.random() * 0.5 + 0.3; // 透明度
+    if (particles.indexOf(p) === -1) particles.push(p);
+}
+
+function createSplash(x, y) {
+    const count = Math.random() * 3 + 2;
+    for (let i = 0; i < count; i++) {
+        splashParticles.push({
+            x: x,
+            y: y,
+            vx: (Math.random() - 0.5) * 4,
+            vy: -(Math.random() * 3 + 1),
+            life: 1.0,
+            gravity: 0.2
         });
     }
 }
 
-function animateRain() {
+function animateRain(isStorm) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
-    ctx.lineWidth = 1;
+    
+    // 闪电效果
+    if (isStorm) {
+        if (lightningTimer > 0) {
+            lightningTimer--;
+            ctx.fillStyle = `rgba(255, 255, 255, ${lightningTimer / 10})`;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        } else if (Math.random() < 0.005) { // 0.5% 概率触发闪电
+            lightningTimer = 10;
+        }
+    }
+
+    // 绘制云层 (背景层)
+    drawClouds();
+
+    // 绘制雨滴
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+    ctx.lineWidth = 1.5;
     ctx.beginPath();
+    
     for(let p of particles) {
-        ctx.moveTo(p.x, p.y);
-        ctx.lineTo(p.x, p.y + p.l);
+        // 应用风力
+        p.x += wind.x;
+        // 暴雨额外增加一点混乱的风
+        if (isStorm) p.x += (Math.random() - 0.5) * 2;
+        
         p.y += p.v;
-        if (p.y > canvas.height) {
-            p.y = -p.l;
-            p.x = Math.random() * canvas.width;
+
+        // 碰撞检测
+        let hit = false;
+        if (p.y > 0 && p.y < canvas.height) {
+            for (let zone of collisionZones) {
+                // 检查是否击中 UI 顶部边界
+                if (p.x >= zone.left && p.x <= zone.right && 
+                    p.y >= zone.top && p.y <= zone.top + 15) { // 稍微宽松的判定
+                    
+                    hit = true;
+                    createSplash(p.x, zone.top);
+                    resetRainDrop(p);
+                    break;
+                }
+            }
+        }
+
+        if (!hit) {
+            if (p.y > canvas.height) {
+                resetRainDrop(p);
+            } else {
+                // 根据风向绘制雨滴轨迹
+                ctx.moveTo(p.x, p.y);
+                // 雨滴尾巴向风的反方向延伸，或者简单的垂直延伸+倾斜
+                // 这里简单处理：尾巴在 (p.x - wind.x * 2, p.y - p.l)
+                ctx.lineTo(p.x - wind.x * 2, p.y - p.l);
+            }
         }
     }
     ctx.stroke();
-    animationId = requestAnimationFrame(animateRain);
+
+    // 绘制溅射效果
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+    for (let i = splashParticles.length - 1; i >= 0; i--) {
+        let sp = splashParticles[i];
+        sp.x += sp.vx;
+        sp.y += sp.vy;
+        sp.vy += sp.gravity;
+        sp.life -= 0.05;
+
+        if (sp.life <= 0) {
+            splashParticles.splice(i, 1);
+        } else {
+            ctx.globalAlpha = sp.life;
+            ctx.beginPath();
+            ctx.arc(sp.x, sp.y, 1, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+    ctx.globalAlpha = 1.0;
+
+    animationId = requestAnimationFrame(() => animateRain(isStorm));
 }
 
+// --- 雪系统 ---
+
 function createSnow() {
-    const count = 50;
-    for(let i=0; i<count; i++) {
-        particles.push({
-            x: Math.random() * canvas.width,
-            y: Math.random() * canvas.height,
-            r: Math.random() * 3 + 1,
-            v: Math.random() * 1 + 0.5
-        });
+    let count;
+    switch(currentIntensity) {
+        case 1: count = 100; break; // 小雪
+        case 2: count = 300; break; // 中雪
+        case 3: count = 800; break; // 大雪
+        default: count = 300;
     }
+    
+    for(let i=0; i<count; i++) {
+        resetSnowFlake({}, true);
+    }
+}
+
+function resetSnowFlake(p, initial = false) {
+    p.x = Math.random() * canvas.width;
+    p.y = initial ? Math.random() * canvas.height : -10;
+    
+    const sizeMult = currentIntensity === 3 ? 1.2 : (currentIntensity === 1 ? 0.8 : 1);
+    const speedMult = currentIntensity === 3 ? 1.5 : (currentIntensity === 1 ? 0.8 : 1);
+
+    p.r = (Math.random() * 3 + 1) * sizeMult; // 半径
+    p.v = (Math.random() * 1.5 + 0.5) * speedMult; // 下落速度
+    p.swing = Math.random() * 0.02; // 摆动幅度
+    p.swingOffset = Math.random() * Math.PI * 2;
+    if (particles.indexOf(p) === -1) particles.push(p);
 }
 
 function animateSnow() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
     ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
     ctx.beginPath();
+    
     for(let p of particles) {
-        ctx.moveTo(p.x, p.y);
-        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        const oldY = p.y;
+        
+        p.swingOffset += p.swing;
+        p.x += Math.sin(p.swingOffset) * 0.5;
         p.y += p.v;
-        if (p.y > canvas.height) {
-            p.y = -5;
-            p.x = Math.random() * canvas.width;
+
+        // 碰撞检测 (雪花碰到 UI 顶部可能会消失)
+        let hit = false;
+        if (p.y > 0 && p.y < canvas.height) {
+            for (let zone of collisionZones) {
+                 if (p.x >= zone.left && p.x <= zone.right && 
+                    oldY <= zone.top && p.y >= zone.top) {
+                    hit = true;
+                    // 雪花碰到 UI 融化/消失
+                    resetSnowFlake(p);
+                    break;
+                }
+            }
+        }
+
+        if (!hit) {
+            if (p.y > canvas.height) {
+                resetSnowFlake(p);
+            } else {
+                ctx.moveTo(p.x, p.y);
+                ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+            }
         }
     }
     ctx.fill();
     animationId = requestAnimationFrame(animateSnow);
+}
+
+// --- 云系统 ---
+
+function createClouds(isDark) {
+    const count = 10;
+    clouds = [];
+    for(let i=0; i<count; i++) {
+        clouds.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * (canvas.height / 3), // 只在上半部分
+            r: Math.random() * 100 + 50,
+            v: Math.random() * 0.2 + 0.1,
+            alpha: Math.random() * 0.3 + 0.1,
+            isDark: isDark
+        });
+    }
+}
+
+function drawClouds() {
+    for(let c of clouds) {
+        c.x += c.v + wind.x * 0.2; // Clouds move slower
+        
+        // Wrap around
+        if (c.x - c.r > canvas.width) {
+            c.x = -c.r;
+        } else if (c.x + c.r < 0) {
+            c.x = canvas.width + c.r;
+        }
+        
+        const gradient = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, c.r);
+        if (c.isDark) {
+            gradient.addColorStop(0, `rgba(50, 50, 60, ${c.alpha})`);
+            gradient.addColorStop(1, 'rgba(50, 50, 60, 0)');
+        } else {
+            gradient.addColorStop(0, `rgba(255, 255, 255, ${c.alpha})`);
+            gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        }
+        
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2);
+        ctx.fill();
+    }
+}
+
+function animateClouds() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawClouds();
+    animationId = requestAnimationFrame(animateClouds);
+}
+
+// --- 光晕系统 (晴天) ---
+
+function createSunBeams() {
+    // 简单的光晕粒子
+    const count = 5;
+    particles = [];
+    for(let i=0; i<count; i++) {
+        particles.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            r: Math.random() * 200 + 100,
+            alpha: 0,
+            targetAlpha: Math.random() * 0.2 + 0.1,
+            delta: 0.002
+        });
+    }
+}
+
+function animateSunBeams() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    for(let p of particles) {
+        p.alpha += p.delta;
+        if (p.alpha > p.targetAlpha || p.alpha < 0) {
+            p.delta = -p.delta;
+        }
+        
+        const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r);
+        gradient.addColorStop(0, `rgba(255, 255, 200, ${Math.max(0, p.alpha)})`);
+        gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // 缓慢移动
+        p.x += Math.sin(Date.now() / 2000) * 0.2;
+    }
+    
+    animationId = requestAnimationFrame(animateSunBeams);
 }
 
 // 屏幕常亮
