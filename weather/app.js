@@ -132,39 +132,98 @@ function setupEventListeners() {
     });
 }
 
+function handleLocationSuccess(lat, lon, initialCityName = null) {
+    state.lat = lat;
+    state.lon = lon;
+    
+    // 先使用传入的城市名（如果有），或者是默认值
+    if (initialCityName) {
+        state.city = initialCityName;
+        updateUI(); // 立即更新UI显示
+    }
+
+    // 保存并获取天气
+    saveLocation();
+    fetchWeatherData(state.lat, state.lon);
+
+    // 尝试反向地理编码获取更准确的中文城市名
+    fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${state.lat}&lon=${state.lon}&accept-language=zh-CN`)
+        .then(res => res.json())
+        .then(data => {
+            const address = data.address;
+            // 优先顺序：市 -> 县/区 -> 镇 -> 村 -> 原始名称
+            const zhCity = address.city || address.town || address.county || address.district || address.village;
+            
+            if (zhCity) {
+                state.city = zhCity;
+                saveLocation();
+                updateUI();
+            } else if (!state.city || state.city === "正在定位..." || state.city === "IP定位中...") {
+                // 如果 Nominatim 也没返回好的名字，且当前还没名字
+                state.city = "当前位置";
+                saveLocation();
+                updateUI();
+            }
+        })
+        .catch(err => {
+            console.warn("Reverse geocoding failed", err);
+            if (!state.city || state.city === "正在定位..." || state.city === "IP定位中...") {
+                state.city = "当前位置";
+                saveLocation();
+                updateUI();
+            }
+        });
+}
+
+function getIPLocation() {
+    console.log("尝试使用 IP 定位...");
+    document.getElementById('location-name').textContent = "IP定位中...";
+    
+    // 优先使用 ipapi.co (支持 HTTPS)
+    fetch('https://ipapi.co/json/')
+        .then(res => {
+            if (!res.ok) throw new Error('IPAPI failed');
+            return res.json();
+        })
+        .then(data => {
+            console.log("IP Location success (ipapi.co):", data);
+            handleLocationSuccess(data.latitude, data.longitude, data.city);
+        })
+        .catch(err => {
+            console.warn("ipapi.co failed, trying ipwho.is", err);
+            // 备用：ipwho.is (无需 key，支持 HTTPS)
+            fetch('https://ipwho.is/')
+                .then(res => res.json())
+                .then(data => {
+                    if (!data.success) throw new Error('IPWho failed');
+                    console.log("IP Location success (ipwho.is):", data);
+                    handleLocationSuccess(data.latitude, data.longitude, data.city);
+                })
+                .catch(finalErr => {
+                    console.error("All IP location services failed", finalErr);
+                    alert("无法获取定位（包括IP定位），请手动搜索城市");
+                    document.getElementById('location-name').textContent = "选择城市";
+                    document.getElementById('search-modal').classList.remove('hidden');
+                });
+        });
+}
+
 function getLocation() {
     document.getElementById('location-name').textContent = "定位中...";
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
             (position) => {
-                state.lat = position.coords.latitude;
-                state.lon = position.coords.longitude;
-                // 反向地理编码获取城市名 (这里简化，直接使用 Geocoding API 或显示坐标)
-                // 我们可以调用一个简单的 API 来获取城市名，或者 Open-Meteo 并没有直接的反向编码功能
-                // 这里暂时用 OpenStreetMap Nominatim
-                fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${state.lat}&lon=${state.lon}`)
-                    .then(res => res.json())
-                    .then(data => {
-                        state.city = data.address.city || data.address.town || data.address.village || "当前位置";
-                        saveLocation();
-                        updateUI();
-                        fetchWeatherData(state.lat, state.lon);
-                    })
-                    .catch(() => {
-                        state.city = "当前位置";
-                        saveLocation();
-                        updateUI();
-                        fetchWeatherData(state.lat, state.lon);
-                    });
+                handleLocationSuccess(position.coords.latitude, position.coords.longitude);
             },
             (error) => {
-                alert("无法获取定位，请手动搜索城市");
-                document.getElementById('location-name').textContent = "选择城市";
-                document.getElementById('search-modal').classList.remove('hidden');
-            }
+                console.warn("Geolocation API failed, falling back to IP location", error);
+                getIPLocation();
+            },
+            { timeout: 10000, enableHighAccuracy: false }
         );
     } else {
-        alert("浏览器不支持定位");
+        console.warn("Geolocation API not supported, using IP location");
+        getIPLocation();
     }
 }
 
