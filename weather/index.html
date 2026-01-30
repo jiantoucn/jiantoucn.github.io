@@ -205,12 +205,40 @@
         <footer class="mt-8 text-center opacity-40 text-xs pb-8">
             <p>数据来源: Open-Meteo</p>
             <p class="mt-2" id="last-updated">更新于: --:--</p>
-            <p class="mt-1">v1.4.0</p>
+            <p class="mt-1">v1.7.1</p>
         </footer>
     </div>
 
     <!-- 音乐播放器容器 -->
-    <div id="music-player" class="fixed bottom-4 right-4 z-40 transition-all duration-500 hidden origin-bottom-right transform scale-75 sm:scale-100"></div>
+    <div id="music-player-container" class="fixed bottom-4 right-4 z-40 flex flex-col items-end gap-2 pointer-events-none">
+        <!-- 控制按钮组 -->
+        <div class="flex gap-2 pointer-events-auto">
+            <!-- 静音按钮 -->
+            <button id="mute-music-btn" class="p-3 bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-full text-white shadow-lg transition-all active:scale-95 border border-white/10" title="静音/播放">
+                <svg id="volume-high-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+                <svg id="volume-mute-icon" class="hidden" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+            </button>
+            
+            <!-- 折叠按钮 -->
+            <button id="toggle-music-btn" class="p-3 bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-full text-white shadow-lg transition-all active:scale-95 border border-white/10" title="展开/折叠">
+                <svg id="music-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+                <svg id="close-icon" class="hidden" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        
+        <!-- 播放器 iframe -->
+        <div id="music-player-content" class="pointer-events-auto transition-all duration-300 origin-bottom-right transform scale-0 opacity-0 h-0 overflow-hidden rounded-xl shadow-2xl relative bg-black/20 backdrop-blur-md">
+             <iframe id="music-iframe" frameborder="no" border="0" marginwidth="0" marginheight="0" width=330 height=450 src="//music.163.com/outchain/player?type=0&id=8548901202&auto=1&height=430"></iframe>
+             <!-- 静音状态提示 -->
+             <div id="muted-overlay" class="absolute inset-0 flex items-center justify-center bg-black/50 hidden">
+                 <div class="text-center">
+                     <svg class="mx-auto mb-2 opacity-50" xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+                     <p class="text-sm opacity-70">音乐已静音</p>
+                     <p class="text-xs opacity-50 mt-1">点击静音按钮恢复播放</p>
+                 </div>
+             </div>
+        </div>
+    </div>
 
     <!-- 搜索城市的模态框 -->
     <div id="search-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">

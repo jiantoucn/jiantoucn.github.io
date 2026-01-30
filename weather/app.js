@@ -130,6 +130,70 @@ function setupEventListeners() {
         getLocation();
         document.getElementById('search-modal').classList.add('hidden');
     });
+
+    // 音乐播放器折叠控制
+    const musicBtn = document.getElementById('toggle-music-btn');
+    const musicContent = document.getElementById('music-player-content');
+    const musicIcon = document.getElementById('music-icon');
+    const closeIcon = document.getElementById('close-icon');
+    let isMusicOpen = false;
+
+    musicBtn.addEventListener('click', () => {
+        isMusicOpen = !isMusicOpen;
+        if (isMusicOpen) {
+            // 展开
+            musicContent.classList.remove('scale-0', 'opacity-0', 'h-0');
+            musicContent.classList.add('scale-75', 'sm:scale-100', 'opacity-100', 'h-auto');
+            musicIcon.classList.add('hidden');
+            closeIcon.classList.remove('hidden');
+        } else {
+            // 折叠
+            musicContent.classList.remove('scale-75', 'sm:scale-100', 'opacity-100', 'h-auto');
+            musicContent.classList.add('scale-0', 'opacity-0', 'h-0');
+            closeIcon.classList.add('hidden');
+            musicIcon.classList.remove('hidden');
+        }
+    });
+
+    // 音乐静音控制
+    const muteBtn = document.getElementById('mute-music-btn');
+    const volumeHighIcon = document.getElementById('volume-high-icon');
+    const volumeMuteIcon = document.getElementById('volume-mute-icon');
+    const musicIframe = document.getElementById('music-iframe');
+    const mutedOverlay = document.getElementById('muted-overlay');
+    let isMuted = false;
+    // 原始src (歌单ID: 8548901202 - 天气之子/言叶之庭/秒速5厘米等新海诚风格纯音乐)
+    // 遗憾的是，网易云外链播放器不支持直接通过URL参数设置“随机播放”模式。
+    // 默认行为是列表循环。用户需要在播放器界面上手动点击随机播放按钮。
+    // 不过，我们可以尝试使用一个动态的歌单或者更换为推荐的随机电台ID（如果支持）。
+    // 目前保持原歌单，但为了尽量“随机”，我们可以在初始化时尝试不自动播放，或者提示用户。
+    // 经查证，网易云外链参数 auto=1 为自动播放，没有 random 参数。
+    // 既然无法通过API强制随机，我们保持原样，但告知用户限制。
+    // *修正*：为了满足“默认随机”的需求，既然 iframe 不支持，我们无法从代码层面强制它随机。
+    // 但我们可以尝试更换为一个更大的歌单，或者在加载时不做特殊处理，因为这是第三方iframe的内部逻辑。
+    // 这里我们保持代码结构，确认无法通过URL参数实现“随机播放”。
+    // 作为一个替代方案，我们可以把 auto=0 改回 auto=1 (自动播放)，
+    // 因为用户之前已经要求了“默认播放”。
+    
+    // 这里我们维持 auto=1
+    const musicSrc = "//music.163.com/outchain/player?type=0&id=8548901202&auto=1&height=430";
+
+    muteBtn.addEventListener('click', () => {
+        isMuted = !isMuted;
+        if (isMuted) {
+            // 静音：清除src
+            musicIframe.src = "";
+            volumeHighIcon.classList.add('hidden');
+            volumeMuteIcon.classList.remove('hidden');
+            mutedOverlay.classList.remove('hidden');
+        } else {
+            // 恢复播放：重置src
+            musicIframe.src = musicSrc;
+            volumeHighIcon.classList.remove('hidden');
+            volumeMuteIcon.classList.add('hidden');
+            mutedOverlay.classList.add('hidden');
+        }
+    });
 }
 
 function getLocation() {
@@ -365,25 +429,13 @@ function renderWeather() {
     // 更新背景
     updateBackground(wInfo.bg, current.is_day);
 
-    // 音乐播放器控制 (雨雪天气自动播放)
-    const musicPlayer = document.getElementById('music-player');
-    const rainyBgs = ['rainy', 'snowy', 'sleet', 'storm'];
+    // 音乐播放器在所有天气下均可用，不再自动隐藏
+    // 仅在首次加载时自动展开雨雪天气下的播放器 (可选优化，这里保持默认折叠状态或根据用户操作)
     
+    // 确保静音状态下不会因天气变化而自动重置 iframe
+    const rainyBgs = ['rainy', 'snowy', 'sleet', 'storm'];
     if (rainyBgs.includes(wInfo.bg)) {
-        // 如果当前没有显示播放器，则显示并加载
-        if (musicPlayer.classList.contains('hidden')) {
-            musicPlayer.classList.remove('hidden');
-            // 只有当容器为空时才注入iframe，避免重复加载导致音乐重置
-            if (!musicPlayer.innerHTML.trim()) {
-                musicPlayer.innerHTML = `<iframe frameborder="no" border="0" marginwidth="0" marginheight="0" width=330 height=450 src="//music.163.com/outchain/player?type=0&id=8548901202&auto=1&height=430"></iframe>`;
-            }
-        }
-    } else {
-        // 如果不是雨雪天气，隐藏并清空（停止音乐）
-        if (!musicPlayer.classList.contains('hidden')) {
-            musicPlayer.classList.add('hidden');
-            musicPlayer.innerHTML = ''; 
-        }
+        // 可选：如果天气变雨，且用户未手动折叠，可以在这里展开（暂不自动展开以防打扰）
     }
 
     // 更新详情
