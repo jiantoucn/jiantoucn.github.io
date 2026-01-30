@@ -540,7 +540,15 @@ function getAQIDesc(aqi) {
 // 动态背景与动画
 let animationId = null;
 const canvas = document.getElementById('bg-canvas');
-const ctx = canvas.getContext('2d');
+// 尝试启用 HDR 支持 (Display-P3 色域)
+let ctx = canvas.getContext('2d', { colorSpace: 'display-p3' });
+// 如果不支持，回退到默认 sRGB
+if (!ctx) ctx = canvas.getContext('2d');
+
+// 检测 HDR 支持
+const isHDR = window.matchMedia('(dynamic-range: high)').matches;
+console.log(`HDR Supported: ${isHDR}, ColorSpace: ${ctx.getContextAttributes().colorSpace}`);
+
 let particles = [];
 let splashParticles = [];
 let clouds = [];
@@ -779,7 +787,14 @@ function animateRain(isStorm) {
     drawClouds();
 
     // 绘制雨滴
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+    // 如果支持 HDR，使用更亮的颜色
+    if (isHDR) {
+        // 使用 color(display-p3 r g b / a) 语法，RGB 值设为 1.2 以利用 HDR 高亮
+        ctx.strokeStyle = 'color(display-p3 1.2 1.2 1.2 / 0.8)';
+    } else {
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+    }
+    
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     
@@ -822,7 +837,12 @@ function animateRain(isStorm) {
     ctx.stroke();
 
     // 绘制溅射效果
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+    if (isHDR) {
+        ctx.fillStyle = 'color(display-p3 1.2 1.2 1.2 / 0.9)';
+    } else {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+    }
+    
     for (let i = splashParticles.length - 1; i >= 0; i--) {
         let sp = splashParticles[i];
         sp.x += sp.vx;
@@ -877,7 +897,12 @@ function resetSnowFlake(p, initial = false) {
 function animateSnow() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+    if (isHDR) {
+        ctx.fillStyle = 'color(display-p3 1.1 1.1 1.2 / 0.9)'; // 雪稍微带一点点冷色调高亮
+    } else {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+    }
+
     ctx.beginPath();
     
     for(let p of particles) {
