@@ -9,6 +9,24 @@
     <link rel="apple-touch-icon" href="icon-192.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        .nav-back-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 2000;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            text-decoration: none;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        .nav-back-btn:hover {
+            background: rgba(255, 255, 255, 0.4);
+        }
         /* 自定义样式补充 */
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -56,6 +74,7 @@
     </style>
 </head>
 <body class="antialiased min-h-screen pb-10">
+    <a href="../index.html" class="nav-back-btn">⬅ 返回导航</a>
 
     <!-- 动态背景层 -->
     <div id="bg-gradient" class="weather-bg-gradient bg-gradient-to-b from-gray-900 to-gray-800"></div>

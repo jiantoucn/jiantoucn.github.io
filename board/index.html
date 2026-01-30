@@ -6,8 +6,31 @@
     <title>ProBoard - 专业网页画板</title>
     <link rel="stylesheet" href="css/style.css">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎨</text></svg>">
+    <style>
+        .nav-back-btn {
+            position: fixed;
+            top: 60px; /* 下移以避开顶部栏 */
+            left: 20px;
+            z-index: 2000;
+            background: rgba(255, 255, 255, 0.2);
+            color: #333;
+            padding: 8px 16px;
+            border-radius: 20px;
+            text-decoration: none;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            font-size: 14px;
+            transition: all 0.3s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .nav-back-btn:hover {
+            background: rgba(255, 255, 255, 0.4);
+            transform: translateY(-2px);
+        }
+    </style>
 </head>
 <body>
+    <a href="../index.html" class="nav-back-btn">⬅ 返回导航</a>
     <div id="app-container">
         <!-- 顶部菜单栏 -->
         <header id="top-bar">
