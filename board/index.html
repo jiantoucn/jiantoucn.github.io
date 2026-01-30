@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ProBoard - 专业网页画板</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎨</text></svg>">
+</head>
+<body>
+    <div id="app-container">
+        <!-- 顶部菜单栏 -->
+        <header id="top-bar">
+            <div class="logo">ProBoard <span id="version-display">v1.0.0</span></div>
+            <div class="menu-items">
+                <button id="btn-new">新建</button>
+                <button id="btn-save">保存</button>
+                <button id="btn-export">导出</button>
+            </div>
+        </header>
+
+        <div id="main-area">
+            <!-- 左侧工具栏 -->
+            <aside id="toolbar">
+                <div class="tool-group">
+                    <button class="tool-btn active" data-tool="brush" title="画笔 (B)">✏️</button>
+                    <button class="tool-btn" data-tool="eraser" title="橡皮擦 (E)">🧹</button>
+                    <button class="tool-btn" data-tool="move" title="移动/变换 (V)">✋</button>
+                </div>
+                
+                <div class="tool-settings">
+                    <label>笔触样式</label>
+                    <select id="brush-style">
+                        <option value="pen">钢笔</option>
+                        <option value="pencil">铅笔</option>
+                        <option value="marker">毛笔/马克笔</option>
+                    </select>
+
+                    <label>大小: <span id="brush-size-val">10</span>px</label>
+                    <input type="range" id="brush-size" min="1" max="100" value="10">
+                    
+                    <label>不透明度: <span id="brush-opacity-val">100</span>%</label>
+                    <input type="range" id="brush-opacity" min="0" max="100" value="100">
+                    
+                    <label>颜色</label>
+                    <input type="color" id="brush-color" value="#000000">
+                </div>
+            </aside>
+
+            <!-- 中间画布区域 -->
+            <main id="canvas-wrapper">
+                <div id="canvas-container">
+                    <!-- Canvas elements will be injected here by LayerManager -->
+                    <div id="canvas-background"></div>
+                </div>
+            </main>
+
+            <!-- 右侧图层面板 -->
+            <aside id="sidebar">
+                <div class="panel-header">
+                    <h3>图层</h3>
+                    <div class="layer-actions">
+                        <button id="btn-add-layer" title="新建图层">+</button>
+                        <button id="btn-delete-layer" title="删除图层">🗑️</button>
+                        <button id="btn-merge-layer" title="向下合并">⏬</button>
+                    </div>
+                </div>
+                <div id="layer-list">
+                    <!-- Layer items will be injected here -->
+                </div>
+                <div class="layer-properties">
+                    <label>图层透明度</label>
+                    <input type="range" id="layer-opacity" min="0" max="100" value="100">
+                </div>
+            </aside>
+        </div>
+
+        <!-- 底部状态栏 -->
+        <footer id="status-bar">
+            <span id="tool-status">工具: 画笔</span>
+            <span id="canvas-size-status">5000 x 5000px</span>
+            <span id="zoom-status">100%</span>
+            <span id="coords-status">0, 0</span>
+        </footer>
+    </div>
+
+    <!-- 模态框：导出 -->
+    <div id="modal-export" class="modal hidden">
+        <div class="modal-content">
+            <h3>导出图片</h3>
+            <div class="form-group">
+                <label>格式:</label>
+                <select id="export-format">
+                    <option value="image/png">PNG</option>
+                    <option value="image/jpeg">JPG</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>质量 (JPG):</label>
+                <input type="range" id="export-quality" min="0" max="1" step="0.1" value="0.9">
+            </div>
+            <div class="modal-actions">
+                <button id="btn-export-cancel">取消</button>
+                <button id="btn-export-confirm" class="primary">导出</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>

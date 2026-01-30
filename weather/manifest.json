@@ -1,0 +1,16 @@
+{
+  "name": "动态天气",
+  "short_name": "天气",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#1a202c",
+  "theme_color": "#1a202c",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

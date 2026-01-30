@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>天气</title>
+    <meta name="theme-color" content="#2d3748">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 自定义样式补充 */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            overflow-x: hidden;
+            background-color: #000;
+            color: white;
+            transition: background 1s ease;
+        }
+        
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        /* 隐藏滚动条但保留功能 */
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        #bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+
+        .weather-bg-gradient {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -2;
+            transition: background 1s ease;
+        }
+    </style>
+</head>
+<body class="antialiased min-h-screen pb-10">
+
+    <!-- 动态背景层 -->
+    <div id="bg-gradient" class="weather-bg-gradient bg-gradient-to-b from-gray-900 to-gray-800"></div>
+    <canvas id="bg-canvas"></canvas>
+
+    <div class="container mx-auto px-4 pt-10 max-w-2xl relative z-10">
+        
+        <!-- 头部：位置与当前温度 -->
+        <header class="text-center mb-8">
+            <div class="flex items-center justify-center gap-2 mb-2 cursor-pointer" id="location-btn">
+                <h1 class="text-3xl font-semibold drop-shadow-md" id="location-name">定位中...</h1>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+            </div>
+            <div class="text-8xl font-thin tracking-tighter drop-shadow-lg mb-2" id="current-temp">--°</div>
+            <div class="text-xl font-medium opacity-90 drop-shadow-md" id="weather-desc">--</div>
+            <div class="flex justify-center gap-4 text-lg opacity-80 mt-1">
+                <span>最高: <span id="max-temp">--</span>°</span>
+                <span>最低: <span id="min-temp">--</span>°</span>
+            </div>
+        </header>
+
+        <!-- 每小时预报 -->
+        <section class="glass-panel p-4 mb-4">
+            <div class="text-xs font-medium uppercase opacity-60 mb-3 flex items-center gap-1 border-b border-white/10 pb-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                每小时预报
+            </div>
+            <div class="flex overflow-x-auto gap-6 hide-scrollbar pb-2" id="hourly-forecast">
+                <!-- JS 填充 -->
+                <div class="flex-shrink-0 text-center w-12 animate-pulse">
+                    <div class="h-4 w-8 bg-white/20 rounded mx-auto mb-2"></div>
+                    <div class="h-6 w-6 bg-white/20 rounded-full mx-auto mb-2"></div>
+                    <div class="h-4 w-8 bg-white/20 rounded mx-auto"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 7天预报 -->
+        <section class="glass-panel p-4 mb-4">
+            <div class="text-xs font-medium uppercase opacity-60 mb-3 flex items-center gap-1 border-b border-white/10 pb-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+                7日天气预报
+            </div>
+            <div class="flex flex-col gap-3" id="daily-forecast">
+                <!-- JS 填充 -->
+            </div>
+        </section>
+
+        <!-- 详情网格 -->
+        <div class="grid grid-cols-2 gap-4">
+            <!-- 空气质量 -->
+            <div class="glass-panel p-4">
+                <div class="text-xs opacity-60 mb-1 flex items-center gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 22H18a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v4"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M2 15h10"/><path d="M9 18l3-3-3-3"/></svg>
+                    空气质量
+                </div>
+                <div class="text-2xl font-semibold" id="aqi-val">--</div>
+                <div class="text-sm opacity-80" id="aqi-desc">--</div>
+                <div class="w-full bg-white/20 h-1 mt-2 rounded-full overflow-hidden">
+                    <div id="aqi-bar" class="h-full bg-gradient-to-r from-green-400 to-red-500 w-0"></div>
+                </div>
+            </div>
+
+            <!-- 风力 -->
+            <div class="glass-panel p-4">
+                <div class="text-xs opacity-60 mb-1 flex items-center gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"/><path d="M9.6 4.6A2 2 0 1 1 11 8H2"/><path d="M12.6 19.4A2 2 0 1 0 14 16H2"/></svg>
+                    风力
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="text-2xl font-semibold"><span id="wind-speed">--</span> <span class="text-sm font-normal">km/h</span></div>
+                </div>
+                <div class="text-sm opacity-80" id="wind-dir">--</div>
+            </div>
+
+            <!-- 日出日落 -->
+            <div class="glass-panel p-4">
+                <div class="text-xs opacity-60 mb-1 flex items-center gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="M20 12h2"/><path d="m19.07 4.93-1.41 1.41"/><path d="M15.91 11.64 12 12l-.01.03"/><path d="M8 12H2"/><path d="M12 8v4"/><path d="M12 22v-6"/><path d="m19.07 19.07-1.41-1.41"/><path d="m4.93 19.07 1.41-1.41"/></svg>
+                    日出日落
+                </div>
+                <div class="text-xl font-semibold mb-1">日出 <span id="sunrise-time">--:--</span></div>
+                <div class="text-sm opacity-80">日落 <span id="sunset-time">--:--</span></div>
+            </div>
+
+            <!-- 湿度 -->
+            <div class="glass-panel p-4">
+                <div class="text-xs opacity-60 mb-1 flex items-center gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a7 7 0 0 0 7-7c0-2-2-2-2-4-3-3-5-4-5-8 0-4-2-5-5-8-3 3-5 4-5 8 0 2-2 2-2 4a7 7 0 0 0 7 7z"/></svg>
+                    湿度
+                </div>
+                <div class="text-2xl font-semibold"><span id="humidity">--</span>%</div>
+                <div class="text-sm opacity-80" id="humidity-desc">--</div>
+            </div>
+             <!-- 降雨概率 -->
+             <div class="glass-panel p-4">
+                <div class="text-xs opacity-60 mb-1 flex items-center gap-1">
+                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M16 14v6"/><path d="M8 14v6"/><path d="M12 16v6"/></svg>
+                    降雨概率
+                </div>
+                <div class="text-2xl font-semibold"><span id="precip-prob">--</span>%</div>
+                <div class="text-sm opacity-80" id="precip-amount">-- mm</div>
+            </div>
+
+             <!-- 气压 -->
+             <div class="glass-panel p-4">
+                <div class="text-xs opacity-60 mb-1 flex items-center gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M16.2 7.8l-2 6.3-6.4 2.1 2-6.3z"/></svg>
+                    气压
+                </div>
+                <div class="text-2xl font-semibold"><span id="pressure">--</span></div>
+                <div class="text-sm opacity-80">hPa</div>
+            </div>
+
+            <!-- 体感温度 -->
+            <div class="glass-panel p-4 col-span-2">
+                <div class="text-xs opacity-60 mb-1 flex items-center gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z"/></svg>
+                    体感温度
+                </div>
+                <div class="text-2xl font-semibold"><span id="apparent-temp">--</span>°</div>
+                <div class="text-sm opacity-80" id="apparent-desc">与实际温度相似</div>
+            </div>
+        </div>
+
+        <footer class="mt-8 text-center opacity-40 text-xs pb-8">
+            <p>数据来源: Open-Meteo</p>
+            <p class="mt-2" id="last-updated">更新于: --:--</p>
+            <p class="mt-1">v1.0.0</p>
+        </footer>
+    </div>
+
+    <!-- 搜索城市的模态框 -->
+    <div id="search-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-gray-800 rounded-xl w-full max-w-md p-4 border border-white/10">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold">选择地区</h3>
+                <button id="close-search" class="p-1 rounded-full hover:bg-white/10">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            <div class="relative mb-4">
+                <input type="text" id="city-input" placeholder="输入城市名称 (英文/拼音)..." class="w-full bg-gray-700 border-none rounded-lg py-3 px-4 text-white focus:ring-2 focus:ring-blue-500 outline-none">
+                <button id="search-btn" class="absolute right-2 top-2 p-1 bg-blue-600 rounded-md">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                </button>
+            </div>
+            <button id="use-location-btn" class="w-full py-3 bg-blue-600 hover:bg-blue-700 rounded-lg flex items-center justify-center gap-2 mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                使用当前定位
+            </button>
+            <div id="search-results" class="max-h-60 overflow-y-auto space-y-2">
+                <!-- 搜索结果 -->
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        // 注册 Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('SW registered'))
+                    .catch(err => console.log('SW registration failed', err));
+            });
+        }
+    </script>
+</body>
+</html>
