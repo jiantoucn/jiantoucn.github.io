@@ -99,6 +99,15 @@ function setupEventListeners() {
         }
     });
 
+    // 自动检索（防抖）
+    const debouncedSearch = debounce((query) => {
+        if (query) searchCity(query);
+    }, 800); // 增加防抖时间到 800ms，减少不必要的请求
+
+    document.getElementById('city-input').addEventListener('input', (e) => {
+        debouncedSearch(e.target.value);
+    });
+
     document.getElementById('use-location-btn').addEventListener('click', () => {
         getLocation();
         document.getElementById('search-modal').classList.add('hidden');
@@ -147,26 +156,105 @@ function saveLocation() {
     localStorage.setItem('weather_city', state.city);
 }
 
-async function searchCity(query) {
-    const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=5&language=zh&format=json`;
-    try {
-        const res = await fetch(url);
-        const data = await res.json();
-        const resultsContainer = document.getElementById('search-results');
-        resultsContainer.innerHTML = '';
+// 防抖函数
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
 
-        if (!data.results || data.results.length === 0) {
+async function searchCity(query) {
+    const resultsContainer = document.getElementById('search-results');
+    resultsContainer.innerHTML = '<div class="text-center text-gray-400 py-4">搜索中...</div>';
+
+    // 构建搜索队列
+    let queries = [query];
+    // 如果是中文且不包含行政区划后缀，尝试添加后缀搜索
+    if (/[\u4e00-\u9fa5]/.test(query) && query.length >= 2) {
+        if (!query.endsWith('市')) queries.push(query + '市');
+        // 可以根据需要添加 '县', '区' 等，但 '市' 最常用且能解决大城市搜不到的问题
+    }
+
+    // 所有的 fetch Promise
+    const promises = queries.map(q => 
+        fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=10&language=zh&format=json`)
+            .then(res => res.json())
+            .then(data => data.results || [])
+            .catch(e => [])
+    );
+
+    try {
+        const resultsArray = await Promise.all(promises);
+        // 合并结果
+        let allResults = resultsArray.flat();
+
+        // 去重 (根据 ID)
+        const uniqueResults = [];
+        const seenIds = new Set();
+        
+        allResults.forEach(city => {
+            if (!seenIds.has(city.id)) {
+                seenIds.add(city.id);
+                uniqueResults.push(city);
+            }
+        });
+
+        if (uniqueResults.length === 0) {
             resultsContainer.innerHTML = '<div class="text-center text-gray-400 py-4">未找到城市</div>';
             return;
         }
 
-        data.results.forEach(city => {
+        // 1. 过滤：只保留中国 (CN), 香港 (HK), 澳门 (MO), 台湾 (TW)
+        let filteredResults = uniqueResults.filter(city => 
+            ['CN', 'HK', 'MO', 'TW'].includes(city.country_code)
+        );
+
+        if (filteredResults.length === 0) {
+            resultsContainer.innerHTML = '<div class="text-center text-gray-400 py-4">未找到中国境内的城市</div>';
+            return;
+        }
+
+        // 2. 排序优化
+        // 优先级：
+        // 1. 名称完全匹配 (exact match) - 注意：这里我们要匹配的是原始 query 或 query+"市"
+        // 2. 人口数量 (population)
+        filteredResults.sort((a, b) => {
+            // 检查是否匹配原始查询或带“市”的查询
+            const isExactA = queries.includes(a.name);
+            const isExactB = queries.includes(b.name);
+            
+            if (isExactA && !isExactB) return -1;
+            if (!isExactA && isExactB) return 1;
+            
+            return (b.population || 0) - (a.population || 0);
+        });
+
+        // 3. 限制显示数量
+        filteredResults = filteredResults.slice(0, 10);
+
+        resultsContainer.innerHTML = ''; // 清空 loading
+        filteredResults.forEach(city => {
             const div = document.createElement('div');
             div.className = "p-3 bg-gray-700/50 hover:bg-gray-600 rounded-lg cursor-pointer flex justify-between items-center";
+            
+            // 构建行政区划显示字符串
+            let adminInfoParts = [];
+            if (city.admin1) adminInfoParts.push(city.admin1);
+            if (city.admin2 && city.admin2 !== city.admin1) adminInfoParts.push(city.admin2); // 避免重复显示 北京, 北京市
+            if (city.country) adminInfoParts.push(city.country);
+            
+            const adminInfo = adminInfoParts.join(', ');
+            
             div.innerHTML = `
                 <div>
                     <div class="font-medium">${city.name}</div>
-                    <div class="text-xs text-gray-400">${city.admin1 || ''}, ${city.country}</div>
+                    <div class="text-xs text-gray-400">${adminInfo}</div>
                 </div>
                 <div class="text-xs text-gray-500">
                     ${city.latitude.toFixed(2)}, ${city.longitude.toFixed(2)}
@@ -185,7 +273,7 @@ async function searchCity(query) {
         });
     } catch (e) {
         console.error(e);
-        alert("搜索失败");
+        resultsContainer.innerHTML = '<div class="text-center text-gray-400 py-4">搜索出错</div>';
     }
 }
 
@@ -212,6 +300,12 @@ async function fetchWeatherData(lat, lon) {
     } catch (e) {
         console.error("Failed to fetch weather data", e);
         alert("获取天气数据失败");
+    }
+}
+
+function updateUI() {
+    if (state.city) {
+        document.getElementById('location-name').textContent = state.city;
     }
 }
 
