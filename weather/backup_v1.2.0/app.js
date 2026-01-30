@@ -25,12 +25,8 @@ const weatherCodes = {
     61: { desc: "小雨", icon: "rain", bg: "rainy", intensity: 1 },
     63: { desc: "中雨", icon: "rain", bg: "rainy", intensity: 2 },
     65: { desc: "大雨", icon: "rain", bg: "rainy", intensity: 3 },
-    // 冻雨也视为雨夹雪效果
-    66: { desc: "冻雨", icon: "rain", bg: "sleet", intensity: 2 },
-    67: { desc: "大冻雨", icon: "rain", bg: "sleet", intensity: 3 },
-    // 增加雨夹雪模式
-    68: { desc: "雨夹雪", icon: "drizzle", bg: "sleet", intensity: 2 },
-    69: { desc: "大雨夹雪", icon: "rain", bg: "sleet", intensity: 3 },
+    66: { desc: "冻雨", icon: "rain", bg: "rainy", intensity: 2 },
+    67: { desc: "大冻雨", icon: "rain", bg: "rainy", intensity: 3 },
     71: { desc: "小雪", icon: "snow", bg: "snowy", intensity: 1 },
     73: { desc: "中雪", icon: "snow", bg: "snowy", intensity: 2 },
     75: { desc: "大雪", icon: "snow", bg: "snowy", intensity: 3 },
@@ -624,7 +620,6 @@ function updateBackground(bgType, isDay, intensity = 1) {
             else gradientClass = "bg-gradient-to-b from-slate-400 to-slate-200";
             break;
         case 'rainy':
-        case 'sleet':
             if (period === 'night') gradientClass = "bg-gradient-to-b from-slate-900 to-black";
             else gradientClass = "bg-gradient-to-b from-slate-700 to-slate-500";
             break;
@@ -712,12 +707,6 @@ function startAnimation(type, isDay, intensity = 1) {
         createRain(isStorm); 
         createClouds(isStorm); 
         animateRain(isStorm);
-    } else if (type === 'sleet') {
-        // 雨夹雪：同时创建雨和雪
-        createRain(false);
-        createSnow(); // 叠加雪
-        createClouds(true);
-        animateSleet(); // 新的混合动画函数
     } else if (type === 'snowy') {
         createSnow();
         animateSnow();
@@ -738,18 +727,15 @@ function startAnimation(type, isDay, intensity = 1) {
 function createRain(isStorm) {
     let count;
     if (isStorm) {
-        count = 2500; // 暴雨极大数量
+        count = 1200;
     } else {
         switch(currentIntensity) {
-            case 1: count = 150; break; // 小雨更稀疏
-            case 2: count = 700; break; 
-            case 3: count = 1600; break; 
-            default: count = 700;
+            case 1: count = 150; break; // 小雨
+            case 2: count = 500; break; // 中雨
+            case 3: count = 900; break; // 大雨
+            default: count = 400;
         }
     }
-    
-    // 如果是雨夹雪，数量减半，以免太乱，或者保持密集看性能
-    // 这里我们保持高性能模式
     
     for(let i=0; i<count; i++) {
         resetRainDrop({}, true);
@@ -757,37 +743,20 @@ function createRain(isStorm) {
 }
 
 function resetRainDrop(p, initial = false) {
-    // 3D 深度: 0.5 (远) - 1.5 (近)
-    p.z = Math.random() * 1 + 0.5; 
-    
     p.x = Math.random() * canvas.width;
     p.y = initial ? Math.random() * canvas.height : -50;
-    p.type = 'rain'; // 标记类型
     
     const lenMult = currentIntensity === 3 ? 1.5 : (currentIntensity === 1 ? 0.6 : 1);
     const speedMult = currentIntensity === 3 ? 1.4 : (currentIntensity === 1 ? 0.7 : 1);
 
-    // 基础速度 * 深度系数
-    p.baseV = (Math.random() * 10 + 20) * speedMult; 
-    p.v = p.baseV * p.z; 
-    
-    p.l = (Math.random() * 20 + 10) * lenMult * p.z; // 长度随深度变化
-    // 宽度随强度和深度变化
-    const widthBase = currentIntensity === 3 ? 1.8 : (currentIntensity === 1 ? 1.0 : 1.5);
-    p.width = widthBase * p.z; 
-    
-    p.a = (Math.random() * 0.5 + 0.3) * p.z; // 远的透明度低
-    
+    p.l = (Math.random() * 20 + 10) * lenMult; // 长度
+    p.v = (Math.random() * 10 + 15) * speedMult; // 速度
+    p.a = Math.random() * 0.5 + 0.3; // 透明度
     if (particles.indexOf(p) === -1) particles.push(p);
 }
 
 function createSplash(x, y) {
-    // 溅射数量随雨量变化
-    let countBase = 2;
-    if (currentIntensity === 3) countBase = 4;
-    if (currentIntensity === 1) countBase = 1;
-
-    const count = Math.random() * countBase + 2;
+    const count = Math.random() * 3 + 2;
     for (let i = 0; i < count; i++) {
         splashParticles.push({
             x: x,
@@ -795,7 +764,7 @@ function createSplash(x, y) {
             vx: (Math.random() - 0.5) * 4,
             vy: -(Math.random() * 3 + 1),
             life: 1.0,
-            gravity: 0.5 // 增加重力
+            gravity: 0.2
         });
     }
 }
@@ -809,41 +778,41 @@ function animateRain(isStorm) {
             lightningTimer--;
             ctx.fillStyle = `rgba(255, 255, 255, ${lightningTimer / 10})`;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-        } else if (Math.random() < 0.005) { 
+        } else if (Math.random() < 0.005) { // 0.5% 概率触发闪电
             lightningTimer = 10;
         }
     }
 
-    // 绘制云层
+    // 绘制云层 (背景层)
     drawClouds();
 
-    // 模拟风力扰动 (随雨势增强)
-    const time = Date.now() / 1000;
-    const turbulenceBase = isStorm ? 1.0 : (currentIntensity === 3 ? 0.7 : 0.3);
-    const gust = (Math.sin(time) * 0.5 + Math.cos(time * 2.3) * 0.3) * turbulenceBase; 
-    const currentWindX = wind.x + gust;
-
-    // 分层渲染 (Far, Mid, Near)
-    const layers = [
-        { particles: [], style: { alpha: 0.4, width: 0.8 } }, // Far
-        { particles: [], style: { alpha: 0.7, width: 1.2 } }, // Mid
-        { particles: [], style: { alpha: 1.0, width: 1.6 } }  // Near
-    ];
-
+    // 绘制雨滴
+    // 如果支持 HDR，使用更亮的颜色
+    if (isHDR) {
+        // 使用 color(display-p3 r g b / a) 语法，RGB 值设为 1.2 以利用 HDR 高亮
+        ctx.strokeStyle = 'color(display-p3 1.2 1.2 1.2 / 0.8)';
+    } else {
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+    }
+    
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    
     for(let p of particles) {
-        if (p.type && p.type !== 'rain') continue; // 只处理雨滴
-
-        // 物理更新
-        p.x += currentWindX * p.z; // 风力受深度影响
+        // 应用风力
+        p.x += wind.x;
+        // 暴雨额外增加一点混乱的风
+        if (isStorm) p.x += (Math.random() - 0.5) * 2;
+        
         p.y += p.v;
-        p.v += 0.05; // 重力加速度
 
         // 碰撞检测
         let hit = false;
-        if (p.y > 0 && p.y < canvas.height && p.z > 0.8) { // 只有较近的雨滴会产生碰撞
+        if (p.y > 0 && p.y < canvas.height) {
             for (let zone of collisionZones) {
+                // 检查是否击中 UI 顶部边界
                 if (p.x >= zone.left && p.x <= zone.right && 
-                    p.y >= zone.top && p.y <= zone.top + 20) {
+                    p.y >= zone.top && p.y <= zone.top + 15) { // 稍微宽松的判定
                     
                     hit = true;
                     createSplash(p.x, zone.top);
@@ -857,48 +826,17 @@ function animateRain(isStorm) {
             if (p.y > canvas.height) {
                 resetRainDrop(p);
             } else {
-                // 根据深度分层
-                let layerIndex = 0;
-                if (p.z >= 1.2) layerIndex = 2;
-                else if (p.z >= 0.8) layerIndex = 1;
-                
-                // 将绘制数据存入层
-                layers[layerIndex].particles.push({
-                    x: p.x,
-                    y: p.y,
-                    l: p.l,
-                    windX: currentWindX
-                });
+                // 根据风向绘制雨滴轨迹
+                ctx.moveTo(p.x, p.y);
+                // 雨滴尾巴向风的反方向延伸，或者简单的垂直延伸+倾斜
+                // 这里简单处理：尾巴在 (p.x - wind.x * 2, p.y - p.l)
+                ctx.lineTo(p.x - wind.x * 2, p.y - p.l);
             }
         }
     }
+    ctx.stroke();
 
-    // 批量绘制层
-    for(let layer of layers) {
-        if (layer.particles.length === 0) continue;
-        
-        ctx.beginPath();
-        if (isHDR) {
-             ctx.strokeStyle = `color(display-p3 1.2 1.2 1.2 / ${layer.style.alpha})`;
-        } else {
-             ctx.strokeStyle = `rgba(255, 255, 255, ${layer.style.alpha})`;
-        }
-        ctx.lineWidth = layer.style.width;
-        
-        for(let item of layer.particles) {
-             ctx.moveTo(item.x, item.y);
-             ctx.lineTo(item.x - item.windX * 2, item.y - item.l);
-        }
-        ctx.stroke();
-    }
-
-    // 绘制溅射
-    drawSplashes();
-
-    animationId = requestAnimationFrame(() => animateRain(isStorm));
-}
-
-function drawSplashes() {
+    // 绘制溅射效果
     if (isHDR) {
         ctx.fillStyle = 'color(display-p3 1.2 1.2 1.2 / 0.9)';
     } else {
@@ -922,6 +860,8 @@ function drawSplashes() {
         }
     }
     ctx.globalAlpha = 1.0;
+
+    animationId = requestAnimationFrame(() => animateRain(isStorm));
 }
 
 // --- 雪系统 ---
@@ -929,10 +869,10 @@ function drawSplashes() {
 function createSnow() {
     let count;
     switch(currentIntensity) {
-        case 1: count = 100; break; 
-        case 2: count = 500; break; 
-        case 3: count = 1500; break; 
-        default: count = 500;
+        case 1: count = 100; break; // 小雪
+        case 2: count = 300; break; // 中雪
+        case 3: count = 800; break; // 大雪
+        default: count = 300;
     }
     
     for(let i=0; i<count; i++) {
@@ -941,59 +881,45 @@ function createSnow() {
 }
 
 function resetSnowFlake(p, initial = false) {
-    p.z = Math.random() * 1 + 0.5; // 深度
-    
     p.x = Math.random() * canvas.width;
     p.y = initial ? Math.random() * canvas.height : -10;
-    p.type = 'snow';
     
     const sizeMult = currentIntensity === 3 ? 1.2 : (currentIntensity === 1 ? 0.8 : 1);
     const speedMult = currentIntensity === 3 ? 1.5 : (currentIntensity === 1 ? 0.8 : 1);
 
-    p.r = (Math.random() * 3 + 1) * sizeMult * p.z; // 半径随深度
-    p.baseV = (Math.random() * 1.5 + 0.5) * speedMult;
-    p.v = p.baseV * p.z;
-    
-    p.swing = Math.random() * 0.02 * p.z; 
+    p.r = (Math.random() * 3 + 1) * sizeMult; // 半径
+    p.v = (Math.random() * 1.5 + 0.5) * speedMult; // 下落速度
+    p.swing = Math.random() * 0.02; // 摆动幅度
     p.swingOffset = Math.random() * Math.PI * 2;
-    p.a = (Math.random() * 0.5 + 0.5) * p.z;
-
     if (particles.indexOf(p) === -1) particles.push(p);
 }
 
 function animateSnow() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // 模拟风力
-    const time = Date.now() / 1000;
-    const turbulenceBase = currentIntensity === 3 ? 0.8 : 0.4;
-    const gust = Math.sin(time) * turbulenceBase;
-    const currentWindX = wind.x + gust;
+    if (isHDR) {
+        ctx.fillStyle = 'color(display-p3 1.1 1.1 1.2 / 0.9)'; // 雪稍微带一点点冷色调高亮
+    } else {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+    }
 
-    // 分层渲染 (Far, Mid, Near)
-    const layers = [
-        { particles: [], style: { alpha: 0.5 } }, // Far
-        { particles: [], style: { alpha: 0.8 } }, // Mid
-        { particles: [], style: { alpha: 1.0 } }  // Near
-    ];
-
+    ctx.beginPath();
+    
     for(let p of particles) {
-        if (p.type && p.type !== 'snow') continue;
-
         const oldY = p.y;
         
         p.swingOffset += p.swing;
-        // 雪花受风力影响更大
-        p.x += Math.sin(p.swingOffset) * 0.5 * p.z + currentWindX * 2 * p.z;
+        p.x += Math.sin(p.swingOffset) * 0.5;
         p.y += p.v;
 
-        // 碰撞检测
+        // 碰撞检测 (雪花碰到 UI 顶部可能会消失)
         let hit = false;
-        if (p.y > 0 && p.y < canvas.height && p.z > 0.8) {
+        if (p.y > 0 && p.y < canvas.height) {
             for (let zone of collisionZones) {
                  if (p.x >= zone.left && p.x <= zone.right && 
                     oldY <= zone.top && p.y >= zone.top) {
                     hit = true;
+                    // 雪花碰到 UI 融化/消失
                     resetSnowFlake(p);
                     break;
                 }
@@ -1004,160 +930,13 @@ function animateSnow() {
             if (p.y > canvas.height) {
                 resetSnowFlake(p);
             } else {
-                // 根据深度分层
-                let layerIndex = 0;
-                if (p.z >= 1.2) layerIndex = 2;
-                else if (p.z >= 0.8) layerIndex = 1;
-                
-                layers[layerIndex].particles.push(p);
+                ctx.moveTo(p.x, p.y);
+                ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
             }
         }
     }
-
-    // 批量绘制
-    for(let layer of layers) {
-        if (layer.particles.length === 0) continue;
-        
-        ctx.beginPath();
-        if (isHDR) {
-            ctx.fillStyle = `color(display-p3 1.1 1.1 1.2 / ${layer.style.alpha})`;
-        } else {
-            ctx.fillStyle = `rgba(255, 255, 255, ${layer.style.alpha})`;
-        }
-        
-        for(let p of layer.particles) {
-            ctx.moveTo(p.x, p.y);
-            ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        }
-        ctx.fill();
-    }
-
+    ctx.fill();
     animationId = requestAnimationFrame(animateSnow);
-}
-
-// --- 混合模式 (雨夹雪) ---
-function animateSleet() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    drawClouds();
-    
-    const time = Date.now() / 1000;
-    const turbulenceBase = currentIntensity === 3 ? 0.7 : 0.4;
-    const gust = Math.sin(time) * turbulenceBase;
-    const currentWindX = wind.x + gust;
-    
-    // 准备层
-    const rainLayers = [
-        { particles: [], style: { alpha: 0.4, width: 0.8 } }, // Far
-        { particles: [], style: { alpha: 0.7, width: 1.2 } }, // Mid
-        { particles: [], style: { alpha: 1.0, width: 1.6 } }  // Near
-    ];
-    const snowLayers = [
-        { particles: [], style: { alpha: 0.5 } }, // Far
-        { particles: [], style: { alpha: 0.8 } }, // Mid
-        { particles: [], style: { alpha: 1.0 } }  // Near
-    ];
-
-    // 绘制所有粒子
-    for(let p of particles) {
-        if (p.type === 'rain') {
-            // 雨滴逻辑
-            p.x += currentWindX * p.z;
-            p.y += p.v;
-            p.v += 0.05;
-
-             let hit = false;
-            if (p.y > 0 && p.y < canvas.height && p.z > 0.8) { 
-                for (let zone of collisionZones) {
-                    if (p.x >= zone.left && p.x <= zone.right && 
-                        p.y >= zone.top && p.y <= zone.top + 20) {
-                        hit = true;
-                        createSplash(p.x, zone.top);
-                        resetRainDrop(p);
-                        break;
-                    }
-                }
-            }
-            
-            if (!hit) {
-                if (p.y > canvas.height) resetRainDrop(p);
-                else {
-                    let layerIndex = 0;
-                    if (p.z >= 1.2) layerIndex = 2;
-                    else if (p.z >= 0.8) layerIndex = 1;
-                    
-                    rainLayers[layerIndex].particles.push({
-                        x: p.x,
-                        y: p.y,
-                        l: p.l,
-                        windX: currentWindX
-                    });
-                }
-            }
-            
-        } else if (p.type === 'snow') {
-            // 雪花逻辑
-            p.swingOffset += p.swing;
-            p.x += Math.sin(p.swingOffset) * 0.5 * p.z + currentWindX * 2 * p.z;
-            p.y += p.v;
-            
-             let hit = false;
-            if (p.y > 0 && p.y < canvas.height && p.z > 0.8) {
-                for (let zone of collisionZones) {
-                     if (p.x >= zone.left && p.x <= zone.right && 
-                        p.y >= zone.top && p.y <= zone.top + 10) { 
-                        hit = true;
-                        resetSnowFlake(p);
-                        break;
-                    }
-                }
-            }
-
-            if (!hit) {
-                if (p.y > canvas.height) resetSnowFlake(p);
-                else {
-                    let layerIndex = 0;
-                    if (p.z >= 1.2) layerIndex = 2;
-                    else if (p.z >= 0.8) layerIndex = 1;
-                    
-                    snowLayers[layerIndex].particles.push(p);
-                }
-            }
-        }
-    }
-
-    // 绘制雨层
-    for(let layer of rainLayers) {
-        if (layer.particles.length === 0) continue;
-        ctx.beginPath();
-        if (isHDR) ctx.strokeStyle = `color(display-p3 1.2 1.2 1.2 / ${layer.style.alpha})`;
-        else ctx.strokeStyle = `rgba(255, 255, 255, ${layer.style.alpha})`;
-        ctx.lineWidth = layer.style.width;
-        
-        for(let item of layer.particles) {
-             ctx.moveTo(item.x, item.y);
-             ctx.lineTo(item.x - item.windX * 2, item.y - item.l);
-        }
-        ctx.stroke();
-    }
-
-    // 绘制雪层
-    for(let layer of snowLayers) {
-        if (layer.particles.length === 0) continue;
-        ctx.beginPath();
-        if (isHDR) ctx.fillStyle = `color(display-p3 1.1 1.1 1.2 / ${layer.style.alpha})`;
-        else ctx.fillStyle = `rgba(255, 255, 255, ${layer.style.alpha})`;
-        
-        for(let p of layer.particles) {
-            ctx.moveTo(p.x, p.y);
-            ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        }
-        ctx.fill();
-    }
-    
-    drawSplashes();
-    
-    animationId = requestAnimationFrame(animateSleet);
 }
 
 // --- 云系统 ---
