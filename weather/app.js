@@ -365,6 +365,27 @@ function renderWeather() {
     // 更新背景
     updateBackground(wInfo.bg, current.is_day);
 
+    // 音乐播放器控制 (雨雪天气自动播放)
+    const musicPlayer = document.getElementById('music-player');
+    const rainyBgs = ['rainy', 'snowy', 'sleet', 'storm'];
+    
+    if (rainyBgs.includes(wInfo.bg)) {
+        // 如果当前没有显示播放器，则显示并加载
+        if (musicPlayer.classList.contains('hidden')) {
+            musicPlayer.classList.remove('hidden');
+            // 只有当容器为空时才注入iframe，避免重复加载导致音乐重置
+            if (!musicPlayer.innerHTML.trim()) {
+                musicPlayer.innerHTML = `<iframe frameborder="no" border="0" marginwidth="0" marginheight="0" width=330 height=450 src="//music.163.com/outchain/player?type=0&id=8548901202&auto=1&height=430"></iframe>`;
+            }
+        }
+    } else {
+        // 如果不是雨雪天气，隐藏并清空（停止音乐）
+        if (!musicPlayer.classList.contains('hidden')) {
+            musicPlayer.classList.add('hidden');
+            musicPlayer.innerHTML = ''; 
+        }
+    }
+
     // 更新详情
     document.getElementById('humidity').textContent = current.relative_humidity_2m;
     document.getElementById('humidity-desc').textContent = `露点 ${Math.round(current.temperature_2m - ((100 - current.relative_humidity_2m)/5))}°`;
