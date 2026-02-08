@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>多模型并发对话系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .markdown-body p { margin-bottom: 0.5em; }
+        .markdown-body pre { background: #f3f4f6; padding: 1em; border-radius: 0.5em; overflow-x: auto; }
+        .markdown-body code { font-family: monospace; background: #f3f4f6; padding: 0.2em 0.4em; border-radius: 0.3em; }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="h-screen flex flex-col bg-gray-50 text-gray-800 overflow-hidden">
+
+    <!-- Header & API Key -->
+    <header class="bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between shrink-0 shadow-sm z-10">
+        <div class="flex items-center gap-2">
+            <h1 class="text-lg font-bold text-gray-700">Multi-LLM Chat</h1>
+            <span class="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">v1.0.0</span>
+        </div>
+        <div class="flex items-center gap-3">
+            <div class="relative">
+                <input type="password" id="api-key-input" placeholder="输入硅基流动 API Key" 
+                    class="border border-gray-300 rounded px-3 py-1.5 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                <button id="save-key-btn" class="absolute right-1 top-1/2 -translate-y-1/2 text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 px-2 py-0.5 rounded border border-gray-300">
+                    保存
+                </button>
+            </div>
+            <button id="new-chat-btn" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-sm font-medium transition-colors flex items-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                新对话
+            </button>
+            <button id="history-toggle-btn" class="text-gray-500 hover:text-gray-700">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 6h11M11 12h11M11 18h11M3 6h.01M3 12h.01M3 18h.01"/></svg>
+            </button>
+        </div>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden relative">
+        <!-- Sidebar (History) -->
+        <aside id="sidebar" class="w-64 bg-white border-r border-gray-200 flex flex-col transition-all duration-300 -ml-64 absolute z-20 h-full shadow-lg">
+            <div class="p-3 border-b border-gray-100 font-semibold text-gray-600 flex justify-between items-center">
+                历史记录
+                <button id="close-sidebar" class="text-gray-400 hover:text-gray-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div id="history-list" class="flex-1 overflow-y-auto p-2 space-y-1">
+                <!-- History items will be injected here -->
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 flex flex-col w-full h-full relative">
+            <!-- Overlay for mobile/sidebar -->
+            <div id="overlay" class="hidden absolute inset-0 bg-black/20 z-10"></div>
+
+            <!-- Chat Grid -->
+            <div id="chat-grid" class="flex-1 overflow-x-auto overflow-y-hidden flex divide-x divide-gray-200 bg-gray-50">
+                <!-- Chat Columns will be injected here -->
+            </div>
+
+            <!-- Input Area -->
+            <div class="bg-white border-t border-gray-200 p-4 shrink-0">
+                <div class="max-w-7xl mx-auto flex gap-2 items-end">
+                    <div class="flex-1 relative">
+                        <textarea id="global-input" rows="3" placeholder="同时向所有 AI 发送消息... (Shift + Enter 换行)" 
+                            class="w-full border border-gray-300 rounded-lg px-4 py-3 pr-12 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none shadow-sm"></textarea>
+                        <div class="absolute right-2 bottom-2 text-xs text-gray-400">Markdown 支持</div>
+                    </div>
+                    <button id="send-btn" class="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-lg shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed h-[46px] w-[46px] flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Templates -->
+    <template id="chat-column-template">
+        <div class="chat-column flex-1 min-w-[300px] max-w-[25%] flex flex-col h-full bg-white relative group">
+            <div class="h-10 border-b border-gray-100 flex items-center justify-between px-3 bg-gray-50/50">
+                <div class="flex items-center gap-2 overflow-hidden">
+                    <div class="w-2 h-2 rounded-full bg-green-500 status-indicator"></div>
+                    <span class="font-medium text-sm text-gray-700 truncate model-name" title="">Model Name</span>
+                </div>
+                <div class="flex gap-1">
+                     <button class="clear-chat-btn text-gray-400 hover:text-red-500 p-1 rounded" title="清空此对话">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="messages-container flex-1 overflow-y-auto p-4 space-y-4 text-sm scroll-smooth">
+                <!-- Messages go here -->
+                <div class="welcome-msg text-center text-gray-400 text-xs mt-10">
+                    等待开始对话...
+                </div>
+            </div>
+
+            <!-- Individual Input (Hidden by default, shown on toggle?) -> Requirement says: "choose to talk individually in an AI window" -->
+            <div class="individual-input-container border-t border-gray-100 p-2 hidden">
+                <div class="flex gap-1">
+                    <input type="text" class="individual-input w-full border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:border-blue-400" placeholder="单独对话...">
+                    <button class="individual-send-btn text-blue-600 hover:bg-blue-50 p-1 rounded">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <script src="script.js"></script>
+</body>
+</html>
