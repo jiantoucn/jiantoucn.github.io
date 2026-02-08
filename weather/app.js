@@ -14,9 +14,9 @@ const weatherCodes = {
     0: { desc: "晴", icon: "sun", bg: "sunny", intensity: 0 },
     1: { desc: "主要晴", icon: "sun", bg: "sunny", intensity: 0 },
     2: { desc: "多云", icon: "cloud", bg: "cloudy", intensity: 0 },
-    3: { desc: "阴", icon: "cloud", bg: "cloudy", intensity: 0 },
-    45: { desc: "雾", icon: "fog", bg: "cloudy", intensity: 0 },
-    48: { desc: "沉积雾", icon: "fog", bg: "cloudy", intensity: 0 },
+    3: { desc: "阴", icon: "cloud", bg: "overcast", intensity: 0 },
+    45: { desc: "雾", icon: "fog", bg: "fog", intensity: 0 },
+    48: { desc: "沉积雾", icon: "fog", bg: "fog", intensity: 0 },
     51: { desc: "毛毛雨", icon: "drizzle", bg: "rainy", intensity: 1 },
     53: { desc: "中毛毛雨", icon: "drizzle", bg: "rainy", intensity: 1 },
     55: { desc: "密毛毛雨", icon: "drizzle", bg: "rainy", intensity: 1 },
@@ -731,10 +731,17 @@ function updateBackground(bgType, isDay, intensity = 1) {
             }
             break;
         case 'cloudy':
-        case 'fog':
             if (period === 'night') gradientClass = "bg-gradient-to-b from-gray-800 to-gray-900";
             else if (period === 'dusk' || period === 'dawn') gradientClass = "bg-gradient-to-b from-slate-500 to-orange-200";
             else gradientClass = "bg-gradient-to-b from-slate-400 to-slate-200";
+            break;
+        case 'overcast':
+            if (period === 'night') gradientClass = "bg-gradient-to-b from-gray-900 to-black";
+            else gradientClass = "bg-gradient-to-b from-gray-600 to-gray-400";
+            break;
+        case 'fog':
+             if (period === 'night') gradientClass = "bg-gradient-to-b from-gray-900 to-slate-800";
+             else gradientClass = "bg-gradient-to-b from-gray-300 to-gray-100";
             break;
         case 'rainy':
         case 'sleet':
@@ -834,13 +841,24 @@ function startAnimation(type, isDay, intensity = 1) {
     } else if (type === 'snowy') {
         createSnow();
         animateSnow();
-    } else if (type === 'cloudy' || type === 'fog') {
-        createClouds(false);
+    } else if (type === 'overcast') {
+        createClouds(true, 25); // 阴天: 深色云，数量多
         animateClouds();
-    } else if (type === 'sunny' && isDay) {
-        // 晴天也可以有一些淡淡的光晕效果
-        createSunBeams();
-        animateSunBeams();
+    } else if (type === 'cloudy') {
+        createClouds(false, 10); // 多云: 浅色云，数量适中
+        animateClouds();
+    } else if (type === 'fog') {
+        createFog();
+        animateFog();
+    } else if (type === 'sunny') {
+        if (isDay) {
+            createSunBeams();
+            createPollen();
+            animateSunnyDay();
+        } else {
+            createStars();
+            animateStars();
+        }
     } else {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
@@ -1275,13 +1293,12 @@ function animateSleet() {
 
 // --- 云系统 ---
 
-function createClouds(isDark) {
-    const count = 10;
+function createClouds(isDark, count = 10) {
     clouds = [];
     for(let i=0; i<count; i++) {
         clouds.push({
             x: Math.random() * canvas.width,
-            y: Math.random() * (canvas.height / 3), // 只在上半部分
+            y: Math.random() * (canvas.height / 2), // 稍微扩大范围
             r: Math.random() * 100 + 50,
             v: Math.random() * 0.2 + 0.1,
             alpha: Math.random() * 0.3 + 0.1,
@@ -1323,14 +1340,18 @@ function animateClouds() {
     animationId = requestAnimationFrame(animateClouds);
 }
 
-// --- 光晕系统 (晴天) ---
+// --- 晴天/夜晚/雾系统 ---
+
+let sunBeams = [];
+let pollen = [];
+let stars = [];
+let fogParticles = [];
 
 function createSunBeams() {
-    // 简单的光晕粒子
     const count = 5;
-    particles = [];
+    sunBeams = [];
     for(let i=0; i<count; i++) {
-        particles.push({
+        sunBeams.push({
             x: Math.random() * canvas.width,
             y: Math.random() * canvas.height,
             r: Math.random() * 200 + 100,
@@ -1341,10 +1362,26 @@ function createSunBeams() {
     }
 }
 
-function animateSunBeams() {
+function createPollen() {
+    const count = 40;
+    pollen = [];
+    for(let i=0; i<count; i++) {
+        pollen.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            r: Math.random() * 2 + 0.5,
+            vx: Math.random() * 0.5 - 0.25,
+            vy: Math.random() * 0.5 - 0.25,
+            alpha: Math.random() * 0.5 + 0.3
+        });
+    }
+}
+
+function animateSunnyDay() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    for(let p of particles) {
+    // 光晕
+    for(let p of sunBeams) {
         p.alpha += p.delta;
         if (p.alpha > p.targetAlpha || p.alpha < 0) {
             p.delta = -p.delta;
@@ -1358,12 +1395,95 @@ function animateSunBeams() {
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
         ctx.fill();
-        
-        // 缓慢移动
         p.x += Math.sin(Date.now() / 2000) * 0.2;
     }
     
-    animationId = requestAnimationFrame(animateSunBeams);
+    // 漂浮粒子 (Pollen)
+    ctx.fillStyle = "rgba(255, 255, 220, 0.6)";
+    for(let p of pollen) {
+        p.x += p.vx + wind.x * 0.1;
+        p.y += p.vy;
+        
+        if (p.x > canvas.width) p.x = 0;
+        if (p.x < 0) p.x = canvas.width;
+        if (p.y > canvas.height) p.y = 0;
+        if (p.y < 0) p.y = canvas.height;
+        
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
+    animationId = requestAnimationFrame(animateSunnyDay);
+}
+
+function createStars() {
+    const count = 150;
+    stars = [];
+    for(let i=0; i<count; i++) {
+        stars.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            r: Math.random() * 1.5 + 0.5,
+            alpha: Math.random(),
+            delta: Math.random() * 0.02 + 0.005
+        });
+    }
+}
+
+function animateStars() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    ctx.fillStyle = "white";
+    for(let s of stars) {
+        s.alpha += s.delta;
+        if (s.alpha > 1 || s.alpha < 0.2) s.delta = -s.delta;
+        
+        ctx.globalAlpha = Math.max(0.2, Math.min(1, s.alpha));
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.globalAlpha = 1.0;
+    
+    animationId = requestAnimationFrame(animateStars);
+}
+
+function createFog() {
+    const count = 25;
+    fogParticles = [];
+    for(let i=0; i<count; i++) {
+        fogParticles.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            r: Math.random() * 300 + 200, 
+            v: Math.random() * 0.2 + 0.1,
+            alpha: Math.random() * 0.1 + 0.05 
+        });
+    }
+}
+
+function animateFog() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    for(let f of fogParticles) {
+        f.x += f.v + wind.x * 0.5;
+        
+        // Wrap
+        if (f.x - f.r > canvas.width) f.x = -f.r;
+        if (f.x + f.r < 0) f.x = canvas.width + f.r;
+        
+        const gradient = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.r);
+        gradient.addColorStop(0, `rgba(200, 200, 210, ${f.alpha})`);
+        gradient.addColorStop(1, 'rgba(200, 200, 210, 0)');
+        
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
+    animationId = requestAnimationFrame(animateFog);
 }
 
 // 屏幕常亮
