@@ -662,6 +662,13 @@ window.addEventListener('resize', () => {
 
 function updateBackground(bgType, isDay, intensity = 1) {
     const bg = document.getElementById('bg-gradient');
+    const sunEl = document.getElementById('sun-element');
+    const moonEl = document.getElementById('moon-element');
+    
+    // 重置天体状态
+    if(sunEl) { sunEl.style.opacity = '0'; sunEl.style.transform = 'scale(0.5)'; }
+    if(moonEl) { moonEl.style.opacity = '0'; moonEl.style.transform = 'scale(0.5)'; }
+
     const current = state.weatherData?.current;
     const daily = state.weatherData?.daily;
     
@@ -690,6 +697,39 @@ function updateBackground(bgType, isDay, intensity = 1) {
     
     // Override/Overlay based on weather
     switch(bgType) {
+        case 'sunny':
+            if (isDay && period !== 'night') {
+                // 更明亮的晴天配色 (使用 Sky 色系)
+                if (period === 'noon') {
+                    gradientClass = "bg-gradient-to-b from-sky-400 via-sky-300 to-blue-200";
+                } else if (period === 'afternoon') {
+                    gradientClass = "bg-gradient-to-b from-sky-500 via-sky-400 to-blue-300";
+                } else if (period === 'morning') {
+                     gradientClass = "bg-gradient-to-b from-sky-400 to-blue-200";
+                } else if (period === 'dawn') {
+                     gradientClass = "bg-gradient-to-b from-indigo-300 via-purple-300 to-orange-200";
+                } else if (period === 'dusk') {
+                     gradientClass = "bg-gradient-to-b from-indigo-700 via-purple-500 to-orange-400";
+                } else {
+                     // Default day
+                     gradientClass = "bg-gradient-to-b from-sky-400 to-blue-200";
+                }
+                
+                // 显示太阳
+                if(sunEl) {
+                    sunEl.style.opacity = '1';
+                    sunEl.style.transform = 'scale(1)';
+                }
+            } else {
+                // 清澈的夜晚
+                gradientClass = "bg-gradient-to-b from-slate-950 via-slate-900 to-slate-800";
+                 // 显示月亮
+                if(moonEl) {
+                    moonEl.style.opacity = '1';
+                    moonEl.style.transform = 'scale(1)';
+                }
+            }
+            break;
         case 'cloudy':
         case 'fog':
             if (period === 'night') gradientClass = "bg-gradient-to-b from-gray-800 to-gray-900";
